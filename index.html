@@ -126,12 +126,13 @@
 		</a>
 
 		<a class="card" href="reveal-scenarios.html">
-			<h2>Reveal scenarios <span class="tag">visibility fix</span></h2>
+			<h2>Reveal scenarios <span class="tag">all view/impression</span></h2>
 			<p>
-				Assets that are in the viewport but hidden by an <em>ancestor</em>
-				(a closed menu, <code>opacity:0</code>, <code>visibility:hidden</code>)
-				must emit their view only when actually revealed. This page loads the
-				bundled fixed SDK build, since the fix is not yet on the dev CDN.
+				Every plugin's view and impression assets, each hidden by an
+				<em>ancestor</em> (a closed menu, <code>opacity:0</code>,
+				<code>visibility:hidden</code>) and revealed via a toggle. With the
+				visibility fix the events fire only on reveal; until it ships to the
+				dev CDN they fire on load.
 			</p>
 		</a>
 

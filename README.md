@@ -1,8 +1,8 @@
 # ac-sdk-harness
 
 Interactive, in-browser test harness for Liferay's Analytics Cloud client SDK
-(`analytics-client-js`). Each page loads a real build of the SDK and shows —
-live — which analytics events the SDK emits as you drive the page. Events are
+(`analytics-client-js`). Each page loads the live SDK from the dev CDN and shows
+— live — which analytics events it emits as you drive the page. Events are
 **real**: they are queued and flushed to the Analytics Cloud dev backend.
 
 **Live:** https://interaminense.github.io/ac-sdk-harness/
@@ -14,7 +14,7 @@ live — which analytics events the SDK emits as you drive the page. Events are
 | [`index.html`](index.html) | Landing page linking every harness page. |
 | [`all-events.html`](all-events.html) | Smoke test for **all 29 events**. Click **Run all** and watch the checklist go green — page view, asset views/impressions, clicks, downloads, submits, field focus/blur, scroll depth, read, and the lifecycle events (load, tab blur/focus, unload). |
 | [`events-on-load.html`](events-on-load.html) | The view/impression events that fire as assets enter the viewport on load, across all six application types. |
-| [`reveal-scenarios.html`](reveal-scenarios.html) | Reproduces the CSS-visibility fix: an asset in the viewport but hidden by an **ancestor** (a closed menu, `opacity:0`, `visibility:hidden`) must emit its view **only when actually revealed**. |
+| [`reveal-scenarios.html`](reveal-scenarios.html) | Every plugin's **view and impression** assets, each hidden by an **ancestor** (`opacity:0` / `visibility:hidden`, the mega-menu case) and revealed via a toggle. |
 
 ## How the SDK is loaded
 
@@ -32,14 +32,16 @@ const CONFIG = {
 };
 ```
 
-`all-events.html` and `events-on-load.html` load the SDK from `SDK_URL` (the
-currently deployed dev build).
+Every page loads the SDK from `SDK_URL` — the currently deployed dev build.
 
-**`reveal-scenarios.html` is the exception:** it demonstrates the ancestor-reveal
-visibility fix, which is not yet deployed to the dev CDN, so it loads the bundled
-`analytics-all-min.js` (a local build that includes the fix) instead of `SDK_URL`.
-Once the fix ships to the CDN, that page can load `SDK_URL` like the others and
-`analytics-all-min.js` can be removed.
+## The visibility fix and the dev CDN
+
+`reveal-scenarios.html` exercises the ancestor-reveal visibility fix
+(LPD-99067): a view should fire only when a CSS-hidden asset is actually
+revealed. That fix is only meaningful once it is deployed to the dev CDN. Until
+then, the deployed build fires the view/impression events on **load** (geometry
+only); the page shows a banner saying so. Once the CDN build includes the fix,
+the events fire only on reveal — no change to this repo is needed.
 
 ## How the live checklist works
 
@@ -47,8 +49,5 @@ Once the fix ships to the CDN, that page can load `SDK_URL` like the others and
 - Each page clears its `ac_*` `localStorage` keys on load, so every run starts
   from a clean slate.
 
-## Regenerating the bundled build
-
-`analytics-all-min.js` is a build artifact of the `analytics-client-js` module
-in `liferay-portal`. To refresh it, rebuild that module and copy
-`build/analytics-all-min.js` over the copy in this repo.
+See [`CLAUDE.md`](CLAUDE.md) for where the SDK source lives and how the events
+map to plugins.
