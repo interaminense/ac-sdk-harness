@@ -25,7 +25,7 @@ like the portal — each page sends it by hand after `create`.
 ```js
 const SDK_URL = 'https://analytics-js-dev-cdn.liferay.com';
 const CONFIG = {
-	channelId: '825006858418062047',
+	channelId: '831904237734003774',
 	dataSourceId: '820802606605225785',
 	endpointUrl: 'https://osbasahpublisher-ac-internal.lfr.cloud',
 	projectId: 'asah59dbaa580b264c578bb15c878dd363f0',
