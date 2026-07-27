@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta content="width=device-width, initial-scale=1.0" name="viewport" />
+
+		<title>ac-sdk-harness — Analytics Cloud client SDK test pages</title>
+
+		<style>
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				background: #f8fafc;
+				color: #0f172a;
+				font-family: system-ui, sans-serif;
+				line-height: 1.5;
+				margin: 0 auto;
+				max-width: 820px;
+				padding: 40px 24px 64px;
+			}
+			h1 {
+				font-size: 26px;
+				margin: 0 0 4px;
+			}
+			.lede {
+				color: #475569;
+				margin: 0 0 28px;
+			}
+			.card {
+				background: #fff;
+				border: 1px solid #e2e8f0;
+				border-radius: 10px;
+				display: block;
+				margin-bottom: 14px;
+				padding: 18px 20px;
+				text-decoration: none;
+				transition: border-color 0.15s, box-shadow 0.15s;
+			}
+			.card:hover {
+				border-color: #1d4ed8;
+				box-shadow: 0 2px 10px rgba(29, 78, 216, 0.12);
+			}
+			.card h2 {
+				color: #1d4ed8;
+				font-size: 17px;
+				margin: 0 0 4px;
+			}
+			.card p {
+				color: #334155;
+				font-size: 14px;
+				margin: 0;
+			}
+			.card .tag {
+				background: #eef2ff;
+				border-radius: 999px;
+				color: #1d4ed8;
+				font-size: 11px;
+				font-weight: 700;
+				margin-left: 8px;
+				padding: 2px 9px;
+				vertical-align: middle;
+			}
+			.config {
+				background: #0f172a;
+				border-radius: 10px;
+				color: #e2e8f0;
+				font-family: ui-monospace, monospace;
+				font-size: 12.5px;
+				margin-top: 32px;
+				overflow-x: auto;
+				padding: 18px 20px;
+			}
+			.config h3 {
+				color: #93c5fd;
+				font-size: 13px;
+				margin: 0 0 10px;
+			}
+			.config .k {
+				color: #93c5fd;
+			}
+			.config .v {
+				color: #86efac;
+			}
+			.note {
+				color: #64748b;
+				font-size: 13px;
+				margin-top: 24px;
+			}
+			code {
+				background: #e2e8f0;
+				border-radius: 4px;
+				font-size: 0.9em;
+				padding: 1px 5px;
+			}
+		</style>
+	</head>
+
+	<body>
+		<h1>ac-sdk-harness</h1>
+		<p class="lede">
+			Interactive, in-browser test pages for Liferay's Analytics Cloud client
+			SDK (<code>analytics-client-js</code>). Each page loads a real build of
+			the SDK and shows — live — which analytics events it emits as you drive
+			the page. Events are real: they are queued and flushed to the dev
+			backend below.
+		</p>
+
+		<a class="card" href="all-events.html">
+			<h2>All events <span class="tag">29 events</span></h2>
+			<p>
+				Smoke test for every triggerable event. Click <strong>Run all</strong>
+				and watch the checklist go green — page view, asset views and
+				impressions, clicks, downloads, submits, field focus/blur, scroll
+				depth, read, and the lifecycle events (load, tab blur/focus, unload).
+			</p>
+		</a>
+
+		<a class="card" href="events-on-load.html">
+			<h2>Events on load</h2>
+			<p>
+				The view/impression events that fire as assets enter the viewport on
+				page load, across all six application types. Toggle individual asset
+				boxes on and off to see how the load-time events change.
+			</p>
+		</a>
+
+		<a class="card" href="reveal-scenarios.html">
+			<h2>Reveal scenarios <span class="tag">visibility fix</span></h2>
+			<p>
+				Assets that are in the viewport but hidden by an <em>ancestor</em>
+				(a closed menu, <code>opacity:0</code>, <code>visibility:hidden</code>)
+				must emit their view only when actually revealed. This page loads the
+				bundled fixed SDK build, since the fix is not yet on the dev CDN.
+			</p>
+		</a>
+
+		<div class="config">
+			<h3>Configuration (Analytics Cloud dev)</h3>
+			<div><span class="k">SDK URL</span>&nbsp;&nbsp;<span class="v">https://analytics-js-dev-cdn.liferay.com</span></div>
+			<div><span class="k">channelId</span>&nbsp;&nbsp;<span class="v">825006858418062047</span></div>
+			<div><span class="k">dataSourceId</span>&nbsp;&nbsp;<span class="v">820802606605225785</span></div>
+			<div><span class="k">projectId</span>&nbsp;&nbsp;<span class="v">asah59dbaa580b264c578bb15c878dd363f0</span></div>
+			<div><span class="k">endpointUrl</span>&nbsp;&nbsp;<span class="v">https://osbasahpublisher-ac-internal.lfr.cloud</span></div>
+		</div>
+
+		<p class="note">
+			The live checklist / log on each page polls the SDK's own event queue
+			via <code>getEvents()</code>. Each page clears its <code>ac_*</code>
+			<code>localStorage</code> keys on load so every run starts clean.
+		</p>
+	</body>
+</html>

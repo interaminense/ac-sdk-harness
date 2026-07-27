@@ -7,27 +7,7 @@
 		<!-- read.ts only measures readable content when this opt-in meta is set. -->
 		<meta content="true" name="data-analytics-readable-content" />
 
-		<title>All events — analytics-client-js smoke</title>
-
-		<script>
-			// Fresh slate: clear the SDK's persisted queue so the checklist and
-			// log reflect only this session.
-			Object.keys(localStorage)
-				.filter((key) => key.startsWith('ac_') || key === 'boxes')
-				.forEach((key) => localStorage.removeItem(key));
-
-			// Keep SDK flushes off the wire; the queue is read via getEvents.
-			window.fetch = () =>
-				Promise.resolve(
-					new Response('{}', {
-						headers: {'Content-Type': 'application/json'},
-						status: 200,
-					})
-				);
-			if (navigator.sendBeacon) {
-				navigator.sendBeacon = () => true;
-			}
-		</script>
+		<title>All events — analytics-client-js harness</title>
 
 		<style>
 			* {
@@ -135,7 +115,7 @@
 	</head>
 
 	<body>
-		<h1>All events — analytics-client-js smoke test</h1>
+		<h1>All events — analytics-client-js harness</h1>
 
 		<!--
 			read.ts reads #main-content's innerText to size the expected reading
@@ -145,7 +125,7 @@
 		<div id="main-content">
 			This short readable paragraph exists only so the page read tracker has
 			a small, non zero expected reading duration to measure against during
-			this smoke test run.
+			this harness run.
 		</div>
 
 		<div class="controls">
@@ -301,7 +281,12 @@
 		<div class="spacer" id="spacer"></div>
 
 		<aside class="panel">
-			<div class="summary" id="summary">0 / 28 events</div>
+			<div class="summary" id="summary">0 / 29 events</div>
+
+			<h2>Page</h2>
+			<div class="check">
+				<div data-eid="pageViewed">⏳ pageViewed</div>
+			</div>
 
 			<h2>View / impression (on load / scroll)</h2>
 			<div class="check">
@@ -347,27 +332,25 @@
 			<div id="log"></div>
 		</aside>
 
-		<script src="./analytics-all-min.js"></script>
-
 		<script>
-			window.__ac = Analytics.create({
-				channelId: '1',
-				dataSourceId: '1',
-				endpointUrl: 'http://localhost:8081/collect',
-				faroBackendUrl: 'http://localhost:8081/faro',
-				flushInterval: 3600000,
-				projectId: '1',
-			});
+			// --- Analytics Cloud embed (real dev backend) ------------------------
+			// Same shape liferay.com uses: point a <script> at the CDN root, then
+			// Analytics.create(config) once it loads. Events are REAL — they are
+			// queued and flushed to endpointUrl, nothing is stubbed.
 
-			// Registered AFTER the SDK's document submit listener, so the SDK
-			// still sees defaultPrevented === false (custom.ts skips submits
-			// whose default was already prevented). This only stops the harness
-			// forms from navigating; it does not suppress tracking.
-			document.addEventListener('submit', (event) => event.preventDefault());
+			const SDK_URL = 'https://analytics-js-dev-cdn.liferay.com';
+			const CHANNEL_ID = '825006858418062047';
+			const CONFIG = {
+				channelId: CHANNEL_ID,
+				dataSourceId: '820802606605225785',
+				endpointUrl: 'https://osbasahpublisher-ac-internal.lfr.cloud',
+				projectId: 'asah59dbaa580b264c578bb15c878dd363f0',
+			};
 
-			// Fill the spacer with enough text/height for real scroll depth + read.
-			const spacer = document.getElementById('spacer');
-			spacer.innerHTML = ('Lorem ipsum dolor sit amet, consectetur adipiscing elit. '.repeat(60) + '<br>').repeat(40);
+			// Start each run from a clean slate: drop the SDK's persisted queue.
+			Object.keys(localStorage)
+				.filter((key) => key.startsWith('ac_') || key === 'boxes')
+				.forEach((key) => localStorage.removeItem(key));
 
 			const logEl = document.getElementById('log');
 			const summaryEl = document.getElementById('summary');
@@ -375,7 +358,9 @@
 			const seen = new Set();
 
 			function render(event) {
-				const item = document.querySelector('[data-eid="' + event.eventId + '"]');
+				const item = document.querySelector(
+					'[data-eid="' + event.eventId + '"]'
+				);
 				if (item && !item.classList.contains('fired')) {
 					item.classList.add('fired');
 					item.textContent = '✓ ' + event.eventId;
@@ -383,33 +368,66 @@
 					summaryEl.textContent = fired + ' / ' + total + ' events';
 				}
 				const key = event.eventId + '|' + JSON.stringify(event.properties);
-				if (seen.has(key)) return;
+				if (seen.has(key)) {
+					return;
+				}
 				seen.add(key);
 				const row = document.createElement('div');
 				row.className = 'row';
-				row.innerHTML = '<span class="eid">' + event.eventId + '</span> <span class="time">' + new Date().toLocaleTimeString() + '</span>';
+				row.innerHTML =
+					'<span class="eid">' +
+					event.eventId +
+					'</span> <span class="time">' +
+					new Date().toLocaleTimeString() +
+					'</span>';
 				logEl.prepend(row);
 			}
 
-			setInterval(() => {
-				if (window.__ac && window.__ac.getEvents) {
-					try { window.__ac.getEvents().forEach(render); } catch (e) {}
-				}
-			}, 300);
+			// Fill the spacer with enough text/height for real scroll depth + read.
+			function fillSpacer() {
+				const spacer = document.getElementById('spacer');
+				spacer.innerHTML = (
+					'Lorem ipsum dolor sit amet, consectetur adipiscing elit. '.repeat(
+						60
+					) + '<br>'
+				).repeat(40);
+			}
 
-			// ---- triggers ----
+			// The SDK flushes the queue, so poll fast enough to observe every
+			// event before it drains, then dedupe via the seen set.
+			function startPolling() {
+				setInterval(() => {
+					if (window.__ac && window.__ac.getEvents) {
+						try {
+							window.__ac.getEvents().forEach(render);
+						} catch (error) {}
+					}
+				}, 250);
+			}
 
-			function fireLoad() { window.dispatchEvent(new Event('load')); }
-			function fireUnload() { window.dispatchEvent(new Event('unload')); }
+			// --- triggers --------------------------------------------------------
+
+			function fireLoad() {
+				window.dispatchEvent(new Event('load'));
+			}
+
+			function fireUnload() {
+				window.dispatchEvent(new Event('unload'));
+			}
 
 			function tab(hidden) {
-				Object.defineProperty(document, 'hidden', {configurable: true, value: hidden});
+				Object.defineProperty(document, 'hidden', {
+					configurable: true,
+					value: hidden,
+				});
 				document.dispatchEvent(new Event('visibilitychange'));
 			}
 
 			function click(id) {
 				const el = document.getElementById(id);
-				if (el) el.dispatchEvent(new MouseEvent('click', {bubbles: true}));
+				if (el) {
+					el.dispatchEvent(new MouseEvent('click', {bubbles: true}));
+				}
 			}
 
 			function runInteractions() {
@@ -420,8 +438,16 @@
 				field.focus();
 				field.blur();
 
-				document.getElementById('form').dispatchEvent(new Event('submit', {bubbles: true, cancelable: true}));
-				document.getElementById('custom-form').dispatchEvent(new Event('submit', {bubbles: true, cancelable: true}));
+				document
+					.getElementById('form')
+					.dispatchEvent(
+						new Event('submit', {bubbles: true, cancelable: true})
+					);
+				document
+					.getElementById('custom-form')
+					.dispatchEvent(
+						new Event('submit', {bubbles: true, cancelable: true})
+					);
 			}
 
 			async function scrollThrough() {
@@ -431,6 +457,7 @@
 					document.dispatchEvent(new Event('scroll'));
 					await new Promise((r) => setTimeout(r, 200));
 				}
+
 				// wait past the 1500ms scroll debounce for depth events
 				await new Promise((r) => setTimeout(r, 1800));
 			}
@@ -445,6 +472,30 @@
 				await new Promise((r) => setTimeout(r, 300));
 				fireUnload(); // last: unload may tear the SDK down
 			}
+
+			// --- load the SDK, then wire everything up ---------------------------
+
+			const sdk = document.createElement('script');
+			sdk.src = SDK_URL;
+			sdk.onload = function () {
+				window.__ac = Analytics.create(CONFIG);
+
+				// pageViewed has no plugin; the portal sends it by hand per page.
+				window.__ac.send('pageViewed', 'Page', {
+					externalReferenceCode: 'ac-sdk-harness',
+				});
+
+				// Prevent the harness forms from navigating. Registered AFTER the
+				// SDK's own submit listener, so custom.ts still sees the submit as
+				// not defaultPrevented and emits assetSubmitted.
+				document.addEventListener('submit', (event) =>
+					event.preventDefault()
+				);
+
+				fillSpacer();
+				startPolling();
+			};
+			document.head.appendChild(sdk);
 		</script>
 	</body>
 </html>

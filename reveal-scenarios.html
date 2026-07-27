@@ -6,26 +6,6 @@
 
 		<title>Reveal scenarios — ancestor-hidden asset tracking</title>
 
-		<script>
-			// Stub network so SDK flushes never hit the wire (we read the queue
-			// directly via getEvents below). Returns 200 so the SDK is happy.
-			(function () {
-				const ok = () =>
-					Promise.resolve(
-						new Response('{}', {
-							headers: {'Content-Type': 'application/json'},
-							status: 200,
-						})
-					);
-
-				window.fetch = ok;
-
-				if (navigator.sendBeacon) {
-					navigator.sendBeacon = () => true;
-				}
-			})();
-		</script>
-
 		<style>
 			* {
 				box-sizing: border-box;
@@ -391,6 +371,10 @@
 			<div id="log"><div class="empty">No events yet…</div></div>
 		</aside>
 
+		<!--
+			This page demonstrates the ancestor-reveal fix, which is not yet on
+			the dev CDN, so it loads the bundled fixed build instead of SDK_URL.
+		-->
 		<script src="./analytics-all-min.js"></script>
 
 		<script>
@@ -402,15 +386,18 @@
 				.filter((key) => key.startsWith('ac_'))
 				.forEach((key) => localStorage.removeItem(key));
 
-			// The SDK script above is synchronous, so `Analytics` is defined by
-			// the time this runs.
+			// The SDK script above is synchronous, so `Analytics` is defined
+			// by the time this runs. Events are REAL — flushed to endpointUrl.
 			window.__ac = Analytics.create({
-				channelId: '1',
-				dataSourceId: '1',
-				endpointUrl: 'http://localhost:8081/collect',
-				faroBackendUrl: 'http://localhost:8081/faro',
-				flushInterval: 3600000,
-				projectId: '1',
+				channelId: '825006858418062047',
+				dataSourceId: '820802606605225785',
+				endpointUrl: 'https://osbasahpublisher-ac-internal.lfr.cloud',
+				projectId: 'asah59dbaa580b264c578bb15c878dd363f0',
+			});
+
+			// pageViewed has no plugin; the portal sends it by hand per page.
+			window.__ac.send('pageViewed', 'Page', {
+				externalReferenceCode: 'ac-sdk-harness',
 			});
 
 			const logEl = document.getElementById('log');
@@ -447,8 +434,8 @@
 				logEl.prepend(row);
 			}
 
-			// Poll the SDK queue (flushInterval is huge, so nothing is removed)
-			// and reflect fired views onto the per-scenario badges.
+			// Poll the SDK queue fast (before the real flush drains it) and
+			// reflect fired views onto the per-scenario badges.
 
 			setInterval(() => {
 				if (!window.__ac || !window.__ac.getEvents) {
