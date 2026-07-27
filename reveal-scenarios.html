@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta content="width=device-width, initial-scale=1.0" name="viewport" />
+
+		<title>Reveal scenarios — ancestor-hidden asset tracking</title>
+
+		<script>
+			// Stub network so SDK flushes never hit the wire (we read the queue
+			// directly via getEvents below). Returns 200 so the SDK is happy.
+			(function () {
+				const ok = () =>
+					Promise.resolve(
+						new Response('{}', {
+							headers: {'Content-Type': 'application/json'},
+							status: 200,
+						})
+					);
+
+				window.fetch = ok;
+
+				if (navigator.sendBeacon) {
+					navigator.sendBeacon = () => true;
+				}
+			})();
+		</script>
+
+		<style>
+			* {
+				box-sizing: border-box;
+			}
+
+			body {
+				display: grid;
+				font-family: system-ui, sans-serif;
+				gap: 24px;
+				grid-template-columns: 1fr 380px;
+				margin: 0;
+				padding: 24px;
+			}
+
+			h1 {
+				font-size: 20px;
+				margin: 0 0 4px;
+			}
+
+			.intro {
+				color: #444;
+				font-size: 13px;
+				margin-bottom: 16px;
+			}
+
+			.scenario {
+				border: 1px solid #d0d0d0;
+				border-radius: 8px;
+				margin-bottom: 18px;
+				padding: 14px 16px;
+			}
+
+			.scenario h2 {
+				font-size: 15px;
+				margin: 0 0 2px;
+			}
+
+			.scenario .how {
+				color: #666;
+				font-size: 12px;
+				margin-bottom: 10px;
+			}
+
+			.scenario .expect {
+				font-size: 12px;
+				font-weight: 600;
+			}
+
+			.expect.bug {
+				color: #b23c17;
+			}
+
+			.expect.ok {
+				color: #1a7f37;
+			}
+
+			.status {
+				border-radius: 12px;
+				display: inline-block;
+				font-size: 12px;
+				font-weight: 700;
+				margin-left: 8px;
+				padding: 2px 10px;
+			}
+
+			.status.waiting {
+				background: #f0f0f0;
+				color: #888;
+			}
+
+			.status.viewed {
+				background: #d3f5dd;
+				color: #1a7f37;
+			}
+
+			.toggle-label {
+				background: #eef2ff;
+				border: 1px solid #b9c6ff;
+				border-radius: 6px;
+				cursor: pointer;
+				display: inline-block;
+				font-size: 13px;
+				margin: 8px 0;
+				padding: 6px 12px;
+				user-select: none;
+			}
+
+			.toggle {
+				position: absolute;
+				opacity: 0;
+				pointer-events: none;
+			}
+
+			.panel {
+				background: #fafafa;
+				border: 1px dashed #ccc;
+				border-radius: 6px;
+				margin-top: 8px;
+				min-height: 64px;
+				padding: 12px;
+			}
+
+			.asset {
+				font-size: 13px;
+			}
+
+			.asset h3 {
+				font-size: 14px;
+				margin: 0 0 4px;
+			}
+
+			/* ---- Scenario 1: checkbox reveal, visibility+opacity on ancestor
+			   (the liferay.com :has(:checked) mega-menu case) ---- */
+
+			[data-variant='checkbox-opacity'] .panel {
+				opacity: 0;
+				transition: visibility linear, opacity 0.3s linear;
+				visibility: hidden;
+			}
+
+			[data-variant='checkbox-opacity']:has(.toggle:checked) .panel {
+				opacity: 1;
+				visibility: visible;
+			}
+
+			/* ---- Scenario 2: hover reveal, visibility+opacity on ancestor ---- */
+
+			[data-variant='hover'] .panel {
+				opacity: 0;
+				transition: visibility linear, opacity 0.3s linear;
+				visibility: hidden;
+			}
+
+			[data-variant='hover']:hover .panel {
+				opacity: 1;
+				visibility: visible;
+			}
+
+			/* ---- Scenario 3: checkbox reveal, opacity-only on ancestor ---- */
+
+			[data-variant='opacity-only'] .panel {
+				opacity: 0;
+				transition: opacity 0.3s linear;
+			}
+
+			[data-variant='opacity-only']:has(.toggle:checked) .panel {
+				opacity: 1;
+			}
+
+			/* ---- Scenario 4 (contrast): display:none on ancestor — the
+			   IntersectionObserver DOES catch this (geometry appears) ---- */
+
+			[data-variant='display-none'] .panel {
+				display: none;
+			}
+
+			[data-variant='display-none']:has(.toggle:checked) .panel {
+				display: block;
+			}
+
+			/* ---- Scenario 5: checkbox reveal, visibility only, NO transition
+			   (relies on the click reveal fallback, not transitionend) ---- */
+
+			[data-variant='visibility-instant'] .panel {
+				visibility: hidden;
+			}
+
+			[data-variant='visibility-instant']:has(.toggle:checked) .panel {
+				visibility: visible;
+			}
+
+			.log {
+				align-self: start;
+				background: #0f172a;
+				border-radius: 8px;
+				color: #e2e8f0;
+				font-family: ui-monospace, monospace;
+				font-size: 12px;
+				max-height: 90vh;
+				overflow: auto;
+				padding: 14px;
+				position: sticky;
+				top: 24px;
+			}
+
+			.log h2 {
+				color: #93c5fd;
+				font-size: 13px;
+				margin: 0 0 8px;
+			}
+
+			.log .row {
+				border-bottom: 1px solid #1e293b;
+				padding: 4px 0;
+			}
+
+			.log .eid {
+				color: #86efac;
+				font-weight: 700;
+			}
+
+			.log .empty {
+				color: #64748b;
+			}
+		</style>
+	</head>
+
+	<body>
+		<main>
+			<h1>Reveal scenarios — ancestor-hidden asset tracking</h1>
+
+			<p class="intro">
+				Each box holds a trackable <code>web-content</code> asset that is
+				in the viewport but hidden by CSS. Open each one and watch the
+				log: a <code>webContentViewed</code> should appear only when the
+				asset actually becomes visible. Scenarios 1–3 and 5 are the cases
+				a geometry/attribute observer misses on its own; scenario 4 is the
+				contrast the IntersectionObserver already handles.
+			</p>
+
+			<div class="scenario" data-variant="checkbox-opacity">
+				<h2>
+					1. Checkbox dropdown — visibility + opacity on ancestor
+					<span class="status waiting" data-status="wc-checkbox-opacity">waiting</span>
+				</h2>
+				<div class="how">
+					Reveal via <code>:has(.toggle:checked)</code> toggling an
+					ancestor's <code>visibility</code>/<code>opacity</code> (the
+					liferay.com mega-menu case). Caught via <code>transitionend</code>.
+				</div>
+				<div class="expect bug">Without the fix: view never fires.</div>
+
+				<label class="toggle-label">
+					<input class="toggle" type="checkbox" /> Open / close
+				</label>
+
+				<div class="panel">
+					<div
+						class="asset"
+						data-analytics-asset-id="wc-checkbox-opacity"
+						data-analytics-asset-title="Checkbox + opacity ancestor"
+						data-analytics-asset-type="web-content"
+					>
+						<h3>Web content 1</h3>
+						<p>Hidden by an ancestor's visibility + opacity.</p>
+					</div>
+				</div>
+			</div>
+
+			<div class="scenario" data-variant="hover">
+				<h2>
+					2. Hover submenu — visibility + opacity on ancestor
+					<span class="status waiting" data-status="wc-hover">waiting</span>
+				</h2>
+				<div class="how">
+					Reveal on <code>:hover</code> of an ancestor. No click, no
+					attribute change — caught via <code>transitionend</code>.
+				</div>
+				<div class="expect bug">Without the fix: view never fires.</div>
+
+				<div class="panel">
+					<div
+						class="asset"
+						data-analytics-asset-id="wc-hover"
+						data-analytics-asset-title="Hover ancestor"
+						data-analytics-asset-type="web-content"
+					>
+						<h3>Web content 2</h3>
+						<p>Hover this box to reveal it.</p>
+					</div>
+				</div>
+			</div>
+
+			<div class="scenario" data-variant="opacity-only">
+				<h2>
+					3. Checkbox accordion — opacity only on ancestor
+					<span class="status waiting" data-status="wc-opacity">waiting</span>
+				</h2>
+				<div class="how">
+					Ancestor stays laid out; only <code>opacity</code> animates
+					0 → 1. Caught via <code>transitionend</code>.
+				</div>
+				<div class="expect bug">Without the fix: view never fires.</div>
+
+				<label class="toggle-label">
+					<input class="toggle" type="checkbox" /> Open / close
+				</label>
+
+				<div class="panel">
+					<div
+						class="asset"
+						data-analytics-asset-id="wc-opacity"
+						data-analytics-asset-title="Opacity-only ancestor"
+						data-analytics-asset-type="web-content"
+					>
+						<h3>Web content 3</h3>
+						<p>Hidden by an ancestor's opacity: 0.</p>
+					</div>
+				</div>
+			</div>
+
+			<div class="scenario" data-variant="visibility-instant">
+				<h2>
+					5. Checkbox reveal — visibility only, no transition
+					<span class="status waiting" data-status="wc-instant">waiting</span>
+				</h2>
+				<div class="how">
+					Instant reveal (no animation), so no <code>transitionend</code>
+					fires — caught via the <code>click</code> fallback.
+				</div>
+				<div class="expect bug">Without the fix: view never fires.</div>
+
+				<label class="toggle-label">
+					<input class="toggle" type="checkbox" /> Open / close
+				</label>
+
+				<div class="panel">
+					<div
+						class="asset"
+						data-analytics-asset-id="wc-instant"
+						data-analytics-asset-title="Visibility instant ancestor"
+						data-analytics-asset-type="web-content"
+					>
+						<h3>Web content 5</h3>
+						<p>Hidden by an ancestor's visibility: hidden (no transition).</p>
+					</div>
+				</div>
+			</div>
+
+			<div class="scenario" data-variant="display-none">
+				<h2>
+					4. Contrast — display: none on ancestor
+					<span class="status waiting" data-status="wc-display">waiting</span>
+				</h2>
+				<div class="how">
+					Reveal toggles <code>display</code> none → block, which changes
+					geometry. The IntersectionObserver already catches this.
+				</div>
+				<div class="expect ok">
+					Works with or without the reveal fix (geometry change).
+				</div>
+
+				<label class="toggle-label">
+					<input class="toggle" type="checkbox" /> Open / close
+				</label>
+
+				<div class="panel">
+					<div
+						class="asset"
+						data-analytics-asset-id="wc-display"
+						data-analytics-asset-title="Display-none ancestor"
+						data-analytics-asset-type="web-content"
+					>
+						<h3>Web content 4</h3>
+						<p>Hidden by an ancestor's display: none.</p>
+					</div>
+				</div>
+			</div>
+		</main>
+
+		<aside class="log">
+			<h2>Analytics events (live)</h2>
+			<div id="log"><div class="empty">No events yet…</div></div>
+		</aside>
+
+		<script src="./analytics-all-min.js"></script>
+
+		<script>
+			// Fresh slate on every load: the SDK persists its event queue (and
+			// other state) in localStorage under `ac_*` keys, which would
+			// otherwise carry old events across reloads. Clear them before
+			// create so the log below reflects only this session.
+			Object.keys(localStorage)
+				.filter((key) => key.startsWith('ac_'))
+				.forEach((key) => localStorage.removeItem(key));
+
+			// The SDK script above is synchronous, so `Analytics` is defined by
+			// the time this runs.
+			window.__ac = Analytics.create({
+				channelId: '1',
+				dataSourceId: '1',
+				endpointUrl: 'http://localhost:8081/collect',
+				faroBackendUrl: 'http://localhost:8081/faro',
+				flushInterval: 3600000,
+				projectId: '1',
+			});
+
+			const logEl = document.getElementById('log');
+			const seen = new Set();
+
+			function render(event) {
+				const key = event.eventId + '|' + JSON.stringify(event.properties);
+
+				if (seen.has(key)) {
+					return;
+				}
+
+				seen.add(key);
+
+				if (logEl.querySelector('.empty')) {
+					logEl.innerHTML = '';
+				}
+
+				const time = new Date().toLocaleTimeString();
+				const title =
+					(event.properties && event.properties.title) || '';
+				const row = document.createElement('div');
+
+				row.className = 'row';
+				row.innerHTML =
+					'<span class="eid">' +
+					event.eventId +
+					'</span> ' +
+					title +
+					' <span style="color:#64748b">' +
+					time +
+					'</span>';
+
+				logEl.prepend(row);
+			}
+
+			// Poll the SDK queue (flushInterval is huge, so nothing is removed)
+			// and reflect fired views onto the per-scenario badges.
+
+			setInterval(() => {
+				if (!window.__ac || !window.__ac.getEvents) {
+					return;
+				}
+
+				try {
+					window.__ac.getEvents().forEach(render);
+				}
+				catch (error) {}
+
+				document.querySelectorAll('.asset').forEach((asset) => {
+					if (
+						asset.getAttribute('data-analytics-asset-viewed') ===
+						'true'
+					) {
+						const badge = document.querySelector(
+							'[data-status="' +
+								asset.getAttribute('data-analytics-asset-id') +
+								'"]'
+						);
+
+						if (badge && !badge.classList.contains('viewed')) {
+							badge.className = 'status viewed';
+							badge.textContent = 'viewed ✓';
+						}
+					}
+				});
+			}, 300);
+		</script>
+	</body>
+</html>

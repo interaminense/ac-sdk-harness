@@ -1,0 +1,472 @@
+<!doctype html>
+
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta content="IE=edge" http-equiv="X-UA-Compatible" />
+		<meta content="width=device-width, initial-scale=1.0" name="viewport" />
+
+		<title>Events on load</title>
+
+		<link href="style.css" rel="stylesheet" />
+
+		<style>
+			body {
+				padding-right: 400px;
+			}
+
+			.load-panel {
+				background: #0f172a;
+				border-radius: 8px;
+				bottom: 16px;
+				color: #e2e8f0;
+				font-family: ui-monospace, monospace;
+				font-size: 12px;
+				overflow: auto;
+				padding: 14px;
+				position: fixed;
+				right: 16px;
+				top: 16px;
+				width: 368px;
+				z-index: 9999;
+			}
+
+			.load-panel h2 {
+				color: #93c5fd;
+				font-size: 13px;
+				margin: 12px 0 8px;
+			}
+
+			.load-panel h2:first-child {
+				margin-top: 0;
+			}
+
+			.expected div {
+				color: #fca5a5;
+				padding: 3px 0;
+			}
+
+			.expected div.fired {
+				color: #86efac;
+				font-weight: 700;
+			}
+
+			#log .row {
+				border-bottom: 1px solid #1e293b;
+				padding: 4px 0;
+			}
+
+			#log .eid {
+				color: #86efac;
+				font-weight: 700;
+			}
+
+			#log .time {
+				color: #64748b;
+			}
+
+			#log .empty {
+				color: #64748b;
+			}
+		</style>
+	</head>
+
+	<body>
+		<div class="header">
+			<h1 class="title">
+				List of tracked assets from Analytics Client JS
+			</h1>
+
+			<div>
+				Open console to see events in the Network tab or you can download
+				<a href="https://chrome.google.com/webstore/detail/ac-event-bucket/gghpanomgaddpgokmgjjemebmdkbpbck" target="_blank">ac-event-bucket chrome extension</a>
+			</div>
+
+			<div id="hiddenBoxes">
+				<div class="btns-header">
+					<span>Hidden boxes</span>
+
+					<button data-id="blog" data-action="enable" class="btn">blog X</button>
+					<button data-id="custom" data-action="enable" class="btn">custom X</button>
+					<button data-id="document" data-action="enable" class="btn">document X</button>
+					<button data-id="form" data-action="enable" class="btn">form X</button>
+					<button data-id="webContent" data-action="enable" class="btn">webContent X</button>
+					<button data-id="objectEntry" data-action="enable" class="btn">objectEntry X</button>
+				</div>
+			</div>
+		</div>
+
+		<div class="container">
+			<div class="box" id="blog">
+				<button class="btn-hidden" data-action="disable" data-id="blog">
+					hide
+				</button>
+
+				<h2 class="box__title"><small>ApplicationId</small> Blog</h2>
+
+				<div class="box__track" data-analytics-asset-id="myBlogId" data-analytics-asset-title="Blog Title" data-analytics-asset-type="blog" data-analytics-external-reference-code="d0817abb-d224-426c-8bc4-6670ed614a6b">
+					<h3>
+						Bringing Ideas To Life: A Look Into Creative Writing
+					</h3>
+
+					<p>
+						This blog explores the ways in which we can use
+						creativity to bring our ideas to life. We will be
+						looking at techniques for how to inspire, generate and
+						develop characters and plotlines for compelling stories.
+						We will also look at real-life examples and discuss
+						practical use cases to apply knowledge to real writing.
+					</p>
+				</div>
+
+				<ul class="events">
+					<li>blogViewed</li>
+					<li>blogClicked</li>
+					<li>blogDepthReached</li>
+				</ul>
+			</div>
+
+			<div class="box" id="document">
+				<button class="btn-hidden" data-action="disable" data-id="document">
+					hide
+				</button>
+
+				<h2 class="box__title">
+					<small>ApplicationId</small> Document
+				</h2>
+
+				<div class="box__track">
+					<h3>List of the documents related to Analytics Cloud</h3>
+
+					<ul>
+					<li data-analytics-asset-action="preview" data-analytics-asset-id="myDocumentA" data-analytics-asset-title="Document A" data-analytics-asset-type="document" data-analytics-external-reference-code="df33acc7-b5d7-4ee8-b48d-f3ce9503c5e3">
+						<a data-analytics-asset-action="download" href="#">Document A</a>
+						</li>
+					<li data-analytics-asset-action="preview" data-analytics-asset-id="myDocumentB" data-analytics-asset-title="Document B" data-analytics-asset-type="document" data-analytics-external-reference-code="6a37ca01-230a-4e20-a405-7273526843ec">
+						<a data-analytics-asset-action="download" href="#">Document B</a>
+						</li>
+					<li data-analytics-asset-action="preview" data-analytics-asset-id="myDocumentC" data-analytics-asset-title="Document C" data-analytics-asset-type="document" data-analytics-external-reference-code="a88fe7f2-85bb-4b89-a1ef-0e99626d10df">
+						<a data-analytics-asset-action="download" href="#">Document C</a>
+						</li>
+					<li data-analytics-asset-action="preview" data-analytics-asset-id="myDocumentD" data-analytics-asset-title="Document D" data-analytics-asset-type="document" data-analytics-external-reference-code="48a426d3-59ba-4d5d-a7fb-527e9a0d6f69">
+						<a data-analytics-asset-action="download" href="#">Document D</a>
+						</li>
+					</ul>
+				</div>
+
+				<ul class="events">
+					<li>documentDownloaded</li>
+					<li>documentPreviewed</li>
+				</ul>
+			</div>
+
+			<div class="box" id="webContent">
+				<button class="btn-hidden" data-action="disable" data-id="webContent">
+					hide
+				</button>
+
+				<h2 class="box__title">
+					<small>ApplicationId</small> WebContent
+				</h2>
+
+				<div class="box__track" data-analytics-asset-id="myWebContentId" data-analytics-asset-title="Web Content Title" data-analytics-asset-type="web-content" data-analytics-external-reference-code="a66d047e-3203-401a-890c-b881a9c54648">
+					<h3>
+						Bringing Ideas To Life: A Look Into Creative Writing
+					</h3>
+
+					<p>
+						This blog explores the ways in which we can use
+						creativity to bring our ideas to life. We will be
+						looking at techniques for how to inspire, generate and
+						develop characters and plotlines for compelling stories.
+						We will also look at real-life examples and discuss
+						practical use cases to apply knowledge to real writing.
+					</p>
+				</div>
+
+				<ul class="events">
+					<li>webContentViewed</li>
+					<li>webContentClicked</li>
+				</ul>
+			</div>
+
+			<div class="box" id="form">
+				<button class="btn-hidden" data-action="disable" data-id="form">
+					hide
+				</button>
+
+				<h2 class="box__title"><small>ApplicationId</small> Form</h2>
+
+			<form class="box__track box__form" data-analytics-asset-id="myFormId" data-analytics-asset-title="Form Title" data-analytics-asset-type="form" data-analytics-external-reference-code="ef129ef8-7959-4e34-8598-1ea936fee1cf">
+					<h3>Create new user</h3>
+
+					<div class="content">
+						<label for="name">Name</label>
+
+						<input id="name" type="text" />
+					</div>
+
+					<div class="content">
+						<label for="city">City</label>
+
+						<input id="city" type="text" />
+					</div>
+
+					<div class="content">
+						<label for="age">Age</label>
+
+						<input id="age" type="text" />
+					</div>
+
+					<button type="submit">save</button>
+				</form>
+
+				<ul class="events">
+					<li>formViewed</li>
+					<li>formSubmitted</li>
+					<li>fieldFocused</li>
+					<li>fieldBlurred</li>
+				</ul>
+			</div>
+
+			<div class="box" id="custom">
+				<button class="btn-hidden" data-action="disable" data-id="custom">
+					hide
+				</button>
+
+				<h2 class="box__title"><small>ApplicationId</small> Custom</h2>
+
+				<div class="box__track" data-analytics-asset-id="myCustomId" data-analytics-asset-type="custom">
+					<h3>
+						Bringing Ideas To Life: A Look Into Creative Writing
+					</h3>
+
+					<p>
+						This custom asset explores the ways in which we can use
+						creativity to bring our ideas to life.
+					</p>
+
+					<ul>
+						<li>
+						<a data-analytics-asset-action="download" href="#">Custom Document A</a>
+						</li>
+						<li>
+						<a data-analytics-asset-action="download" href="#">Custom Document B</a>
+						</li>
+					</ul>
+
+					<form class="box__form">
+						<h3>Create new user</h3>
+
+						<div class="content">
+							<label for="name">Name</label>
+
+							<input id="name" type="text" />
+						</div>
+
+						<button type="submit">save</button>
+					</form>
+				</div>
+
+				<ul class="events">
+					<li>assetDownloaded</li>
+					<li>assetDepthReached</li>
+					<li>assetSubmitted</li>
+					<li>assetViewed</li>
+					<li>assetClicked</li>
+					<li>documentDownloaded</li>
+				</ul>
+			</div>
+
+			<div class="box" id="objectEntry">
+				<button class="btn-hidden" data-action="disable" data-id="objectEntry">hide</button>
+
+				<h2 class="box__title">
+					<small>ApplicationId</small> objectEntry
+				</h2>
+
+				<div class="box__track">
+					<h3 data-analytics-asset-action="impression" data-analytics-asset-title="Web Content Title" data-analytics-asset-type="object-entry" data-analytics-external-reference-code="a66d047e-3203-401a-890c-b881a9c54648" data-analytics-object-definition-name="my-custom-object-definition-name" data-analytics-object-type="my-custom-object-type">
+						Bringing Ideas To Life: A Look Into Creative Writing
+					</h3>
+
+					<p data-analytics-asset-action="view" data-analytics-asset-title="Web Content Title" data-analytics-asset-type="object-entry" data-analytics-external-reference-code="a66d047e-3203-401a-890c-b881a9c54648" data-analytics-object-definition-name="my-custom-object-definition-name" data-analytics-object-type="my-custom-object-type">
+						This content explores the ways in which we can use
+						creativity to bring our ideas to life. We will be
+						looking at techniques for how to inspire, generate and
+						develop characters and plotlines for compelling stories.
+						We will also look at real-life examples and discuss
+						practical use cases to apply knowledge to real writing.
+					</p>
+
+					<a data-analytics-asset-action="download" data-analytics-asset-type="object-entry" data-analytics-external-reference-code="a66d047e-3203-401a-890c-b881a9c54648" data-analytics-object-definition-name="my-custom-object-definition-name" data-analytics-object-type="my-custom-object-type" href="#">
+						here is a link to download something
+					</a>
+				</div>
+
+				<ul class="events">
+					<li>objectEntryViewed</li>
+					<li>objectEntryImpressionMade</li>
+					<li>objectEntryDownloaded</li>
+				</ul>
+			</div>
+		</div>
+
+		<aside class="load-panel">
+			<h2>View / impression events expected on load</h2>
+
+			<div class="expected">
+				<div data-eid="blogViewed">⏳ blogViewed</div>
+				<div data-eid="webContentViewed">⏳ webContentViewed</div>
+				<div data-eid="assetViewed">⏳ assetViewed</div>
+				<div data-eid="documentPreviewed">⏳ documentPreviewed</div>
+				<div data-eid="formViewed">⏳ formViewed</div>
+				<div data-eid="objectEntryViewed">⏳ objectEntryViewed</div>
+				<div data-eid="objectEntryImpressionMade">⏳ objectEntryImpressionMade</div>
+			</div>
+
+			<h2>All events (live)</h2>
+
+			<div id="log"><div class="empty">No events yet…</div></div>
+		</aside>
+
+		<!-- AC Script -->
+
+		<script>
+			// Fresh slate on every load: clear the SDK's persisted event queue
+			// (`ac_*` keys) and the per-box visibility so the log reflects only
+			// this load and every asset renders.
+			Object.keys(localStorage)
+				.filter((key) => key.startsWith('ac_') || key === 'boxes')
+				.forEach((key) => localStorage.removeItem(key));
+
+			// Keep SDK flushes off the wire; the queue is read via getEvents.
+			window.fetch = () =>
+				Promise.resolve(
+					new Response('{}', {
+						headers: {'Content-Type': 'application/json'},
+						status: 200,
+					})
+				);
+			if (navigator.sendBeacon) {
+				navigator.sendBeacon = () => true;
+			}
+
+			(function (u, c, a, m, o, l) {
+				(o = 'script'),
+					(l = document),
+					(a = l.createElement(o)),
+					(m = l.getElementsByTagName(o)[0]),
+					(a.async = 1),
+					(a.src = u),
+					(a.onload = c),
+					m.parentNode.insertBefore(a, m);
+			})('./analytics-all-min.js', function () {
+				window.__ac = Analytics.create({
+					channelId: '1',
+					dataSourceId: '1',
+					endpointUrl: 'http://localhost:8081/collect',
+					faroBackendUrl: 'http://localhost:8081/faro',
+					flushInterval: 3600000,
+					projectId: '1',
+				});
+			});
+
+			// ---- live event log + expected-on-load checklist ----
+
+			const logEl = document.getElementById('log');
+			const seen = new Set();
+
+			function render(event) {
+				const key =
+					event.eventId + '|' + JSON.stringify(event.properties);
+
+				if (seen.has(key)) {
+					return;
+				}
+
+				seen.add(key);
+
+				const item = document.querySelector(
+					'[data-eid="' + event.eventId + '"]'
+				);
+
+				if (item && !item.classList.contains('fired')) {
+					item.classList.add('fired');
+					item.textContent = '✓ ' + event.eventId;
+				}
+
+				if (logEl.querySelector('.empty')) {
+					logEl.innerHTML = '';
+				}
+
+				const time = new Date().toLocaleTimeString();
+				const title =
+					(event.properties && event.properties.title) || '';
+				const row = document.createElement('div');
+
+				row.className = 'row';
+				row.innerHTML =
+					'<span class="eid">' +
+					event.eventId +
+					'</span> ' +
+					title +
+					' <span class="time">' +
+					time +
+					'</span>';
+
+				logEl.prepend(row);
+			}
+
+			setInterval(() => {
+				if (!window.__ac || !window.__ac.getEvents) {
+					return;
+				}
+
+				try {
+					window.__ac.getEvents().forEach(render);
+				}
+				catch (error) {}
+			}, 300);
+
+			function getBoxes() {
+				return JSON.parse(localStorage.getItem('boxes'));
+			}
+
+			function setEnabled(id, enabled) {
+				localStorage.setItem(
+					'boxes',
+					JSON.stringify({...getBoxes(), [id]: enabled})
+				);
+
+				window.location.reload();
+			}
+
+			function init() {
+				document.querySelector('body').addEventListener('click', (event) => {
+					if (event.target.dataset.id) {
+						setEnabled(
+							event.target.dataset.id,
+							event.target.dataset.action === 'enable'
+						);
+					}
+				});
+
+				const boxes = getBoxes();
+
+				boxes && Object.keys(boxes).forEach((box) => {
+					const boxElement = document.querySelector(`#${box}`);
+					const buttonEnabled = document.querySelector(`.btn[data-id="${box}"]`);
+
+					buttonEnabled.classList.toggle('show', !boxes[box]);
+
+					// Delete element from DOM if box is disabled before render it.
+
+					!boxes[box] && boxElement.remove();
+				});
+			}
+
+			init();
+		</script>
+	</body>
+</html>

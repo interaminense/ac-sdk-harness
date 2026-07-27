@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta content="width=device-width, initial-scale=1.0" name="viewport" />
+
+		<!-- read.ts only measures readable content when this opt-in meta is set. -->
+		<meta content="true" name="data-analytics-readable-content" />
+
+		<title>All events — analytics-client-js smoke</title>
+
+		<script>
+			// Fresh slate: clear the SDK's persisted queue so the checklist and
+			// log reflect only this session.
+			Object.keys(localStorage)
+				.filter((key) => key.startsWith('ac_') || key === 'boxes')
+				.forEach((key) => localStorage.removeItem(key));
+
+			// Keep SDK flushes off the wire; the queue is read via getEvents.
+			window.fetch = () =>
+				Promise.resolve(
+					new Response('{}', {
+						headers: {'Content-Type': 'application/json'},
+						status: 200,
+					})
+				);
+			if (navigator.sendBeacon) {
+				navigator.sendBeacon = () => true;
+			}
+		</script>
+
+		<style>
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				font-family: system-ui, sans-serif;
+				margin: 0;
+				padding: 16px 420px 16px 16px;
+			}
+			h1 {
+				font-size: 20px;
+			}
+			.controls {
+				background: #eef2ff;
+				border: 1px solid #b9c6ff;
+				border-radius: 8px;
+				display: flex;
+				flex-wrap: wrap;
+				gap: 8px;
+				margin-bottom: 16px;
+				padding: 12px;
+				position: sticky;
+				top: 0;
+				z-index: 10;
+			}
+			.controls button {
+				background: #1d4ed8;
+				border: 0;
+				border-radius: 6px;
+				color: #fff;
+				cursor: pointer;
+				font-size: 13px;
+				padding: 8px 12px;
+			}
+			.controls button.secondary {
+				background: #475569;
+			}
+			.asset {
+				border: 1px solid #d0d0d0;
+				border-radius: 8px;
+				margin-bottom: 14px;
+				padding: 12px 14px;
+			}
+			.asset h3 {
+				font-size: 14px;
+				margin: 0 0 6px;
+			}
+			.asset a {
+				color: #1d4ed8;
+				margin-right: 12px;
+			}
+			.spacer {
+				color: #666;
+				font-size: 13px;
+				line-height: 1.7;
+			}
+			.panel {
+				background: #0f172a;
+				border-radius: 8px;
+				bottom: 16px;
+				color: #e2e8f0;
+				font-family: ui-monospace, monospace;
+				font-size: 12px;
+				overflow: auto;
+				padding: 14px;
+				position: fixed;
+				right: 16px;
+				top: 16px;
+				width: 388px;
+			}
+			.panel h2 {
+				color: #93c5fd;
+				font-size: 13px;
+				margin: 12px 0 6px;
+			}
+			.panel h2:first-child {
+				margin-top: 0;
+			}
+			.summary {
+				color: #93c5fd;
+				font-weight: 700;
+				margin-bottom: 6px;
+			}
+			.check div {
+				color: #fca5a5;
+				padding: 2px 0;
+			}
+			.check div.fired {
+				color: #86efac;
+				font-weight: 700;
+			}
+			#log .row {
+				border-bottom: 1px solid #1e293b;
+				padding: 3px 0;
+			}
+			#log .eid {
+				color: #86efac;
+				font-weight: 700;
+			}
+			#log .time {
+				color: #64748b;
+			}
+		</style>
+	</head>
+
+	<body>
+		<h1>All events — analytics-client-js smoke test</h1>
+
+		<!--
+			read.ts reads #main-content's innerText to size the expected reading
+			time. Kept short (~20 words) so pageRead's timer fires within seconds
+			once the scroll depth also passes READ_MINIMUM_SCROLL_DEPTH (75%).
+		-->
+		<div id="main-content">
+			This short readable paragraph exists only so the page read tracker has
+			a small, non zero expected reading duration to measure against during
+			this smoke test run.
+		</div>
+
+		<div class="controls">
+			<button onclick="runAll()">▶ Run all</button>
+			<button class="secondary" onclick="scrollThrough()">
+				⤓ Scroll through (views + depth + read)
+			</button>
+			<button class="secondary" onclick="runInteractions()">
+				🖱 Clicks / downloads / submits / fields
+			</button>
+			<button class="secondary" onclick="fireLoad()">
+				⟳ window load (pageLoaded)
+			</button>
+			<button class="secondary" onclick="tab(true)">⎋ Tab blur</button>
+			<button class="secondary" onclick="tab(false)">⎉ Tab focus</button>
+			<button class="secondary" onclick="fireUnload()">
+				⏻ unload (pageUnloaded)
+			</button>
+		</div>
+
+		<!-- Blog: view + impression + click + depth -->
+		<div
+			class="asset"
+			id="blog-view"
+			data-analytics-asset-id="blog-1"
+			data-analytics-asset-title="Blog (view)"
+			data-analytics-asset-type="blog"
+		>
+			<h3>Blog — view</h3>
+			<a href="#" id="blog-link" onclick="return false">click me (blogClicked)</a>
+		</div>
+
+		<div
+			class="asset"
+			data-analytics-asset-action="impression"
+			data-analytics-asset-id="blog-2"
+			data-analytics-asset-title="Blog (impression)"
+			data-analytics-asset-type="blog"
+		>
+			<h3>Blog — impression</h3>
+		</div>
+
+		<!-- Web Content: view + impression + click -->
+		<div
+			class="asset"
+			id="wc-view"
+			data-analytics-asset-id="wc-1"
+			data-analytics-asset-title="Web Content (view)"
+			data-analytics-asset-type="web-content"
+		>
+			<h3>Web Content — view</h3>
+			<a href="#" id="wc-link" onclick="return false">click me (webContentClicked)</a>
+		</div>
+
+		<div
+			class="asset"
+			data-analytics-asset-action="impression"
+			data-analytics-asset-id="wc-2"
+			data-analytics-asset-title="Web Content (impression)"
+			data-analytics-asset-type="web-content"
+		>
+			<h3>Web Content — impression</h3>
+		</div>
+
+		<!-- Custom: view + click + download + submit + depth -->
+		<div
+			class="asset"
+			id="custom"
+			data-analytics-asset-id="custom-1"
+			data-analytics-asset-type="custom"
+		>
+			<h3>Custom — view / click / download / submit</h3>
+			<a href="#" id="custom-link" onclick="return false">click (assetClicked)</a>
+			<a href="#" id="custom-download" data-analytics-asset-action="download" onclick="return false">download (assetDownloaded)</a>
+			<form id="custom-form">
+				<input type="text" placeholder="custom field" />
+				<button type="submit">submit (assetSubmitted)</button>
+			</form>
+		</div>
+
+		<!-- Document: preview + download + FileEntry impression -->
+		<div class="asset">
+			<h3>Document — preview / download / impression</h3>
+			<ul>
+				<li
+					id="doc-preview"
+					data-analytics-asset-action="preview"
+					data-analytics-asset-id="doc-1"
+					data-analytics-asset-title="Document (preview)"
+					data-analytics-asset-type="document"
+				>
+					<a href="#" id="doc-download" data-analytics-asset-action="download" onclick="return false">download (documentDownloaded)</a>
+				</li>
+			</ul>
+			<div
+				id="doc-fileentry"
+				data-analytics-asset-action="impression"
+				data-analytics-asset-id="doc-2"
+				data-analytics-asset-title="Document (FileEntry impression)"
+				data-analytics-asset-type="com.liferay.portal.kernel.repository.model.FileEntry"
+			>
+				FileEntry impression (documentImpressionMade)
+			</div>
+		</div>
+
+		<!-- Form: view + field focus/blur + submit -->
+		<form
+			class="asset"
+			id="form"
+			data-analytics-asset-id="form-1"
+			data-analytics-asset-title="Form"
+			data-analytics-asset-type="form"
+		>
+			<h3>Form — view / field / submit</h3>
+			<input id="form-input" type="text" placeholder="focus + blur me (fieldFocused / fieldBlurred)" />
+			<button type="submit">submit (formSubmitted)</button>
+		</form>
+
+		<!-- Object Entry: view + impression + download -->
+		<div class="asset">
+			<h3>Object Entry — view / impression / download</h3>
+			<h3
+				id="oe-impression"
+				data-analytics-asset-action="impression"
+				data-analytics-asset-title="Object Entry (impression)"
+				data-analytics-asset-type="object-entry"
+				data-analytics-external-reference-code="oe-erc"
+				data-analytics-object-definition-name="my-object-def"
+			>
+				impression (objectEntryImpressionMade)
+			</h3>
+			<p
+				id="oe-view"
+				data-analytics-asset-action="view"
+				data-analytics-asset-title="Object Entry (view)"
+				data-analytics-asset-type="object-entry"
+				data-analytics-external-reference-code="oe-erc"
+				data-analytics-object-definition-name="my-object-def"
+			>
+				view (objectEntryViewed)
+			</p>
+			<a
+				href="#"
+				id="oe-download"
+				data-analytics-asset-action="download"
+				data-analytics-asset-type="object-entry"
+				data-analytics-external-reference-code="oe-erc"
+				data-analytics-object-definition-name="my-object-def"
+				onclick="return false"
+			>download (objectEntryDownloaded)</a>
+		</div>
+
+		<div class="spacer" id="spacer"></div>
+
+		<aside class="panel">
+			<div class="summary" id="summary">0 / 28 events</div>
+
+			<h2>View / impression (on load / scroll)</h2>
+			<div class="check">
+				<div data-eid="blogViewed">⏳ blogViewed</div>
+				<div data-eid="blogImpressionMade">⏳ blogImpressionMade</div>
+				<div data-eid="webContentViewed">⏳ webContentViewed</div>
+				<div data-eid="webContentImpressionMade">⏳ webContentImpressionMade</div>
+				<div data-eid="assetViewed">⏳ assetViewed</div>
+				<div data-eid="documentPreviewed">⏳ documentPreviewed</div>
+				<div data-eid="documentImpressionMade">⏳ documentImpressionMade</div>
+				<div data-eid="formViewed">⏳ formViewed</div>
+				<div data-eid="objectEntryViewed">⏳ objectEntryViewed</div>
+				<div data-eid="objectEntryImpressionMade">⏳ objectEntryImpressionMade</div>
+			</div>
+
+			<h2>Clicks / downloads / submit / field</h2>
+			<div class="check">
+				<div data-eid="blogClicked">⏳ blogClicked</div>
+				<div data-eid="webContentClicked">⏳ webContentClicked</div>
+				<div data-eid="assetClicked">⏳ assetClicked</div>
+				<div data-eid="assetDownloaded">⏳ assetDownloaded</div>
+				<div data-eid="documentDownloaded">⏳ documentDownloaded</div>
+				<div data-eid="objectEntryDownloaded">⏳ objectEntryDownloaded</div>
+				<div data-eid="assetSubmitted">⏳ assetSubmitted</div>
+				<div data-eid="formSubmitted">⏳ formSubmitted</div>
+				<div data-eid="fieldFocused">⏳ fieldFocused</div>
+				<div data-eid="fieldBlurred">⏳ fieldBlurred</div>
+			</div>
+
+			<h2>Scroll / lifecycle</h2>
+			<div class="check">
+				<div data-eid="blogDepthReached">⏳ blogDepthReached</div>
+				<div data-eid="assetDepthReached">⏳ assetDepthReached</div>
+				<div data-eid="pageDepthReached">⏳ pageDepthReached</div>
+				<div data-eid="pageRead">⏳ pageRead</div>
+				<div data-eid="pageLoaded">⏳ pageLoaded</div>
+				<div data-eid="tabBlurred">⏳ tabBlurred</div>
+				<div data-eid="tabFocused">⏳ tabFocused</div>
+				<div data-eid="pageUnloaded">⏳ pageUnloaded</div>
+			</div>
+
+			<h2>Log</h2>
+			<div id="log"></div>
+		</aside>
+
+		<script src="./analytics-all-min.js"></script>
+
+		<script>
+			window.__ac = Analytics.create({
+				channelId: '1',
+				dataSourceId: '1',
+				endpointUrl: 'http://localhost:8081/collect',
+				faroBackendUrl: 'http://localhost:8081/faro',
+				flushInterval: 3600000,
+				projectId: '1',
+			});
+
+			// Registered AFTER the SDK's document submit listener, so the SDK
+			// still sees defaultPrevented === false (custom.ts skips submits
+			// whose default was already prevented). This only stops the harness
+			// forms from navigating; it does not suppress tracking.
+			document.addEventListener('submit', (event) => event.preventDefault());
+
+			// Fill the spacer with enough text/height for real scroll depth + read.
+			const spacer = document.getElementById('spacer');
+			spacer.innerHTML = ('Lorem ipsum dolor sit amet, consectetur adipiscing elit. '.repeat(60) + '<br>').repeat(40);
+
+			const logEl = document.getElementById('log');
+			const summaryEl = document.getElementById('summary');
+			const total = document.querySelectorAll('.check div').length;
+			const seen = new Set();
+
+			function render(event) {
+				const item = document.querySelector('[data-eid="' + event.eventId + '"]');
+				if (item && !item.classList.contains('fired')) {
+					item.classList.add('fired');
+					item.textContent = '✓ ' + event.eventId;
+					const fired = document.querySelectorAll('.check div.fired').length;
+					summaryEl.textContent = fired + ' / ' + total + ' events';
+				}
+				const key = event.eventId + '|' + JSON.stringify(event.properties);
+				if (seen.has(key)) return;
+				seen.add(key);
+				const row = document.createElement('div');
+				row.className = 'row';
+				row.innerHTML = '<span class="eid">' + event.eventId + '</span> <span class="time">' + new Date().toLocaleTimeString() + '</span>';
+				logEl.prepend(row);
+			}
+
+			setInterval(() => {
+				if (window.__ac && window.__ac.getEvents) {
+					try { window.__ac.getEvents().forEach(render); } catch (e) {}
+				}
+			}, 300);
+
+			// ---- triggers ----
+
+			function fireLoad() { window.dispatchEvent(new Event('load')); }
+			function fireUnload() { window.dispatchEvent(new Event('unload')); }
+
+			function tab(hidden) {
+				Object.defineProperty(document, 'hidden', {configurable: true, value: hidden});
+				document.dispatchEvent(new Event('visibilitychange'));
+			}
+
+			function click(id) {
+				const el = document.getElementById(id);
+				if (el) el.dispatchEvent(new MouseEvent('click', {bubbles: true}));
+			}
+
+			function runInteractions() {
+				['blog-link', 'wc-link', 'custom-link'].forEach(click);
+				['custom-download', 'doc-download', 'oe-download'].forEach(click);
+
+				const field = document.getElementById('form-input');
+				field.focus();
+				field.blur();
+
+				document.getElementById('form').dispatchEvent(new Event('submit', {bubbles: true, cancelable: true}));
+				document.getElementById('custom-form').dispatchEvent(new Event('submit', {bubbles: true, cancelable: true}));
+			}
+
+			async function scrollThrough() {
+				const h = document.body.scrollHeight;
+				for (let i = 0; i <= 10; i++) {
+					window.scrollTo(0, (h / 10) * i);
+					document.dispatchEvent(new Event('scroll'));
+					await new Promise((r) => setTimeout(r, 200));
+				}
+				// wait past the 1500ms scroll debounce for depth events
+				await new Promise((r) => setTimeout(r, 1800));
+			}
+
+			async function runAll() {
+				fireLoad();
+				await scrollThrough(); // views + depth; also lets pageRead's timer elapse
+				runInteractions();
+				tab(true);
+				await new Promise((r) => setTimeout(r, 300));
+				tab(false);
+				await new Promise((r) => setTimeout(r, 300));
+				fireUnload(); // last: unload may tear the SDK down
+			}
+		</script>
+	</body>
+</html>
