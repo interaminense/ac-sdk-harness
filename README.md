@@ -75,7 +75,9 @@ the events fire only on reveal — no change to this repo is needed.
 
 ## How the live checklist works
 
-- The checklist / log polls the SDK's own queue via `getEvents()`.
+- The checklist / log polls the SDK's own queue via `getEvents()`, and on
+  `all-events.html` and `page-unloaded.html` also mirrors `send()` directly, so
+  an event the flush loop drains between polls is still recorded.
 - Each page clears its `ac_*` `localStorage` keys on load, so every run starts
   from a clean slate.
 

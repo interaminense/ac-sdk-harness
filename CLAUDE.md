@@ -44,6 +44,11 @@ window.__ac.send('pageViewed', 'Page', {externalReferenceCode: '...'});
 
 Events are real — they are queued and flushed to `endpointUrl`. The live
 checklist/log on each page polls the SDK's queue via `window.__ac.getEvents()`.
+`all-events.html` and `page-unloaded.html` additionally mirror `send()` by
+shadowing it on the instance, because polling alone loses whatever the flush
+loop drains between ticks — usually the last event a run fires. When mirroring,
+normalize the properties the way `track()` does (default to `{}`, strip
+`assetType`) or the log's dedupe key will not match the polled one.
 Each page clears its `ac_*` `localStorage` keys on load for a clean slate.
 
 ## Where the SDK source lives

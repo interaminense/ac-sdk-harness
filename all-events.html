@@ -393,6 +393,28 @@
 				).repeat(40);
 			}
 
+			// Polling alone loses any event the flush loop drains before the next
+			// tick — most often the last one a run fires. Shadowing send() on the
+			// instance marks the checklist synchronously, so nothing is missed;
+			// the poll stays as a backstop for anything sent before this runs.
+			function instrument(analytics) {
+				const send = analytics.send.bind(analytics);
+
+				analytics.send = function (eventId, applicationId, properties) {
+					// track() defaults missing props to {} and strips assetType
+					// before queueing. Mirror it, or the log's dedupe key differs
+					// from the polled one and every event renders twice.
+
+					const {assetType, ...eventProperties} = properties || {};
+
+					render({eventId, properties: eventProperties});
+
+					return send(eventId, applicationId, properties);
+				};
+
+				return analytics;
+			}
+
 			// The SDK flushes the queue, so poll fast enough to observe every
 			// event before it drains, then dedupe via the seen set.
 			function startPolling() {
@@ -483,7 +505,7 @@
 			const sdk = document.createElement('script');
 			sdk.src = SDK_URL;
 			sdk.onload = function () {
-				window.__ac = Analytics.create(CONFIG);
+				window.__ac = instrument(Analytics.create(CONFIG));
 
 				// pageViewed has no plugin; the portal sends it by hand per page.
 				window.__ac.send('pageViewed', 'Page', {
