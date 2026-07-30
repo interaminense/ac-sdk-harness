@@ -142,7 +142,7 @@
 			<button class="secondary" onclick="tab(true)">⎋ Tab blur</button>
 			<button class="secondary" onclick="tab(false)">⎉ Tab focus</button>
 			<button class="secondary" onclick="fireUnload()">
-				⏻ unload (pageUnloaded)
+				⏻ pagehide (pageUnloaded)
 			</button>
 		</div>
 
@@ -411,7 +411,12 @@
 				window.dispatchEvent(new Event('load'));
 			}
 
+			// Builds from LPD-100223 on report pageUnloaded from pagehide, since
+			// Chrome is retiring unload. Dispatch both so the checklist is right
+			// whichever of the two the loaded build listens for.
+
 			function fireUnload() {
+				window.dispatchEvent(new Event('pagehide'));
 				window.dispatchEvent(new Event('unload'));
 			}
 
@@ -470,7 +475,7 @@
 				await new Promise((r) => setTimeout(r, 300));
 				tab(false);
 				await new Promise((r) => setTimeout(r, 300));
-				fireUnload(); // last: unload may tear the SDK down
+				fireUnload(); // last: leaving the page may tear the SDK down
 			}
 
 			// --- load the SDK, then wire everything up ---------------------------

@@ -114,6 +114,12 @@ it reports `unload` against the dev CDN and `pagehide` against a local build,
 and it flips on its own once the fix ships to the CDN. Nothing here needs
 changing when that happens.
 
+`all-events.html` is affected too, and less obviously: its `fireUnload()`
+trigger dispatches **both** `pagehide` and `unload`, so the `pageUnloaded` row
+goes green whichever event the loaded build listens for. Any page that drives a
+lifecycle event by hand has to cover both while builds on either side of the fix
+are still in circulation.
+
 Two details worth keeping if the page is edited:
 
 - It mirrors every `send()` into its own `localStorage` log by shadowing the
