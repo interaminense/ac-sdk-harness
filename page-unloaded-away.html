@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta content="width=device-width, initial-scale=1.0" name="viewport" />
+
+		<title>ac-sdk-harness — leaving the page</title>
+
+		<style>
+			body {
+				background: #f8fafc;
+				color: #475569;
+				font-family: system-ui, sans-serif;
+				line-height: 1.5;
+				margin: 0 auto;
+				max-width: 620px;
+				padding: 80px 24px;
+				text-align: center;
+			}
+			code {
+				background: #e2e8f0;
+				border-radius: 4px;
+				font-size: 0.9em;
+				padding: 1px 5px;
+			}
+			a {
+				color: #1d4ed8;
+			}
+		</style>
+	</head>
+
+	<body>
+		<h1>Away from the harness</h1>
+		<p>
+			A real navigation happened, so the harness page was either frozen into
+			the back/forward cache or torn down. Going back in a moment — the
+			harness reports which of the two it was.
+		</p>
+		<p>
+			<a href="page-unloaded.html">Back to the harness</a> if this does not
+			return on its own.
+		</p>
+
+		<script>
+			// Deliberately no SDK here: the point is to leave the harness page.
+			// history.back() is what gives the harness a chance at a back/forward
+			// cache restore rather than a fresh load.
+
+			setTimeout(() => history.back(), 600);
+		</script>
+	</body>
+</html>

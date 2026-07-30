@@ -136,6 +136,18 @@
 			</p>
 		</a>
 
+		<a class="card" href="page-unloaded.html">
+			<h2>pageUnloaded <span class="tag">unload deprecation</span></h2>
+			<p>
+				Chrome is retiring <code>unload</code>, which is where the SDK used
+				to report <code>pageUnloaded</code> from. Identifies which lifecycle
+				event the loaded build listens for, captures a real departure across
+				a navigation, and covers the back/forward cache cases the move to
+				<code>pagehide</code> opens up. Takes <code>?sdk=local</code> to
+				drive a locally built bundle.
+			</p>
+		</a>
+
 		<div class="config">
 			<h3>Configuration (Analytics Cloud dev)</h3>
 			<div><span class="k">SDK URL</span>&nbsp;&nbsp;<span class="v">https://analytics-js-dev-cdn.liferay.com</span></div>

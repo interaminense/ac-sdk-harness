@@ -1,0 +1,695 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta content="width=device-width, initial-scale=1.0" name="viewport" />
+
+		<title>ac-sdk-harness — pageUnloaded and the unload deprecation</title>
+
+		<style>
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				background: #f8fafc;
+				color: #0f172a;
+				font-family: system-ui, sans-serif;
+				line-height: 1.5;
+				margin: 0 auto;
+				max-width: 880px;
+				padding: 40px 24px 64px;
+			}
+			h1 {
+				font-size: 26px;
+				margin: 0 0 4px;
+			}
+			h2 {
+				font-size: 17px;
+				margin: 0 0 6px;
+			}
+			.lede {
+				color: #475569;
+				margin: 0 0 24px;
+			}
+			.panel {
+				background: #fff;
+				border: 1px solid #e2e8f0;
+				border-radius: 10px;
+				margin-bottom: 16px;
+				padding: 18px 20px;
+			}
+			.panel p {
+				color: #334155;
+				font-size: 14px;
+				margin: 0 0 12px;
+			}
+			button {
+				background: #1d4ed8;
+				border: 0;
+				border-radius: 7px;
+				color: #fff;
+				cursor: pointer;
+				font-size: 14px;
+				font-weight: 600;
+				margin: 0 6px 6px 0;
+				padding: 8px 14px;
+			}
+			button:hover {
+				background: #1e40af;
+			}
+			button.ghost {
+				background: #e2e8f0;
+				color: #0f172a;
+			}
+			button.ghost:hover {
+				background: #cbd5e1;
+			}
+			.verdict {
+				border-left: 4px solid #94a3b8;
+				border-radius: 6px;
+				background: #f1f5f9;
+				font-size: 14px;
+				margin-top: 12px;
+				padding: 12px 14px;
+			}
+			.verdict.pass {
+				background: #ecfdf5;
+				border-left-color: #059669;
+			}
+			.verdict.legacy {
+				background: #fffbeb;
+				border-left-color: #d97706;
+			}
+			.verdict.blocked {
+				background: #fef2f2;
+				border-left-color: #dc2626;
+			}
+			.verdict b {
+				display: block;
+				margin-bottom: 3px;
+			}
+			table {
+				border-collapse: collapse;
+				font-size: 13.5px;
+				width: 100%;
+			}
+			th,
+			td {
+				border-bottom: 1px solid #e2e8f0;
+				padding: 6px 8px;
+				text-align: left;
+			}
+			th {
+				color: #64748b;
+				font-size: 12px;
+				text-transform: uppercase;
+			}
+			td.state {
+				font-weight: 700;
+				white-space: nowrap;
+			}
+			.yes {
+				color: #059669;
+			}
+			.no {
+				color: #94a3b8;
+			}
+			.log {
+				background: #0f172a;
+				border-radius: 8px;
+				color: #e2e8f0;
+				font-family: ui-monospace, monospace;
+				font-size: 12.5px;
+				margin-top: 12px;
+				max-height: 260px;
+				overflow-y: auto;
+				padding: 12px 14px;
+			}
+			.log div {
+				padding: 2px 0;
+			}
+			.log .eid {
+				color: #86efac;
+			}
+			.log .meta {
+				color: #64748b;
+			}
+			.env {
+				background: #0f172a;
+				border-radius: 10px;
+				color: #e2e8f0;
+				font-family: ui-monospace, monospace;
+				font-size: 12.5px;
+				margin-bottom: 16px;
+				overflow-x: auto;
+				padding: 14px 18px;
+			}
+			.env .k {
+				color: #93c5fd;
+			}
+			.env .v {
+				color: #86efac;
+			}
+			.note {
+				color: #64748b;
+				font-size: 13px;
+			}
+			code {
+				background: #e2e8f0;
+				border-radius: 4px;
+				font-size: 0.9em;
+				padding: 1px 5px;
+			}
+			a {
+				color: #1d4ed8;
+			}
+		</style>
+	</head>
+
+	<body>
+		<h1>pageUnloaded and the unload deprecation</h1>
+		<p class="lede">
+			Chrome is retiring the <code>unload</code> event. The SDK used to report
+			<code>pageUnloaded</code> (and its <code>viewDuration</code>) from an
+			<code>unload</code> listener, so on any page load where Chrome enforces
+			the deprecation the listener is refused and the event is never queued.
+			LPD-100223 moves the reporting to <code>pagehide</code>. This page tells
+			you which of the two the loaded SDK build is using, and exercises the
+			back/forward cache cases that the move makes possible.
+		</p>
+
+		<div class="env" id="env"></div>
+
+		<div class="panel">
+			<h2>1. Which lifecycle event reports pageUnloaded?</h2>
+			<p>
+				Dispatches each event synthetically and watches for
+				<code>pageUnloaded</code>. Synthetic dispatch is deliberate: it shows
+				which listener the build registered, independent of whether this
+				particular browser is currently enforcing the deprecation.
+			</p>
+			<button id="probe-pagehide">Dispatch pagehide</button>
+			<button id="probe-unload">Dispatch unload</button>
+			<button class="ghost" id="probe-reset">Reset</button>
+
+			<table>
+				<thead>
+					<tr>
+						<th>Dispatched</th>
+						<th>pageUnloaded queued</th>
+						<th>viewDuration</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td><code>pagehide</code></td>
+						<td class="state no" id="r-pagehide">not tried</td>
+						<td id="d-pagehide">—</td>
+					</tr>
+					<tr>
+						<td><code>unload</code></td>
+						<td class="state no" id="r-unload">not tried</td>
+						<td id="d-unload">—</td>
+					</tr>
+				</tbody>
+			</table>
+
+			<div class="verdict" id="verdict">
+				<b>No verdict yet</b>
+				Dispatch both events to identify the build.
+			</div>
+		</div>
+
+		<div class="panel">
+			<h2>2. Real departure and back/forward cache restore</h2>
+			<p>
+				Navigates away for real and comes straight back with
+				<code>history.back()</code>. Every event the SDK sends is mirrored to
+				the harness log below before the queue is flushed, so the departure
+				survives the navigation. A build that still listens for
+				<code>unload</code> keeps the page out of the back/forward cache
+				entirely, so the return is a full reload rather than a restore.
+			</p>
+			<button id="trip">Leave and come back</button>
+			<button class="ghost" id="trip-clear">Clear log</button>
+
+			<table>
+				<thead>
+					<tr>
+						<th>Observation</th>
+						<th>Result</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td>Round trip completed</td>
+						<td class="state no" id="t-trip">not tried</td>
+					</tr>
+					<tr>
+						<td>Returned from the back/forward cache</td>
+						<td class="state no" id="t-bfcache">—</td>
+					</tr>
+					<tr>
+						<td><code>pageUnloaded</code> captured on departure</td>
+						<td class="state no" id="t-unloaded">—</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+
+		<div class="panel">
+			<h2>3. Tab events after a restore</h2>
+			<p>
+				The SDK disables <code>tabBlurred</code> / <code>tabFocused</code> on
+				<code>beforeunload</code> so the visibility change caused by leaving
+				is not reported. That flag lives on the module and was never reset, so
+				once the move to <code>pagehide</code> lets a page reach the
+				back/forward cache, a restored page would have had its tab events dead
+				for good. Uses a real restore when probe 2 produced one; otherwise
+				replays the same sequence synthetically.
+			</p>
+			<button id="probe-tab">Run</button>
+
+			<table>
+				<thead>
+					<tr>
+						<th>Observation</th>
+						<th>Result</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td>Tab events off while leaving the page</td>
+						<td class="state no" id="t-tab-off">not tried</td>
+					</tr>
+					<tr>
+						<td>Tab events back after the restore</td>
+						<td class="state no" id="t-tab">not tried</td>
+					</tr>
+					<tr>
+						<td>Restore used</td>
+						<td class="state no" id="t-tab-mode">—</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
+
+		<div class="panel">
+			<h2>Harness log</h2>
+			<p>
+				Every <code>send()</code> the SDK makes, mirrored here and persisted
+				across the round trip. Newest first.
+			</p>
+			<div class="log" id="log"></div>
+		</div>
+
+		<p class="note">
+			Load a different SDK build with <code>?sdk=&lt;url&gt;</code>.
+			<code>?sdk=local</code> resolves to <code>./local/analytics-all-min.js</code>,
+			for driving a bundle built straight out of the module. See the README
+			for serving it.
+		</p>
+
+		<script>
+			// Same shape liferay.com uses: point a <script> at the SDK, then
+			// Analytics.create(config) once it loads. Events are REAL — they are
+			// queued and flushed to endpointUrl.
+
+			const DEV_CDN_URL = 'https://analytics-js-dev-cdn.liferay.com';
+			const LOCAL_URL = './local/analytics-all-min.js';
+
+			const requestedSDK = new URLSearchParams(location.search).get('sdk');
+
+			const SDK_URL =
+				requestedSDK === 'local'
+					? LOCAL_URL
+					: requestedSDK || DEV_CDN_URL;
+
+			const CONFIG = {
+				channelId: '831904237734003774',
+				dataSourceId: '820802606605225785',
+				endpointUrl: 'https://osbasahpublisher-ac-internal.lfr.cloud',
+				projectId: 'asah59dbaa580b264c578bb15c878dd363f0',
+			};
+
+			const LOG_KEY = 'harness_pu_log';
+			const TRIP_KEY = 'harness_pu_trip';
+
+			const returningFromTrip = localStorage.getItem(TRIP_KEY) === 'pending';
+
+			// Keep the SDK's own queue when returning, so the departure event can
+			// still be inspected there; otherwise start from a clean slate.
+
+			if (!returningFromTrip) {
+				Object.keys(localStorage)
+					.filter((key) => key.startsWith('ac_'))
+					.forEach((key) => localStorage.removeItem(key));
+
+				localStorage.removeItem(LOG_KEY);
+			}
+
+			function readLog() {
+				try {
+					return JSON.parse(localStorage.getItem(LOG_KEY)) || [];
+				}
+				catch (error) {
+					return [];
+				}
+			}
+
+			function appendLog(entry) {
+				const entries = readLog();
+
+				entries.push(entry);
+
+				localStorage.setItem(LOG_KEY, JSON.stringify(entries));
+
+				renderLog();
+			}
+
+			function renderLog() {
+				const logEl = document.getElementById('log');
+
+				logEl.innerHTML = readLog()
+					.slice()
+					.reverse()
+					.map(
+						(entry) =>
+							'<div><span class="eid">' +
+							entry.eventId +
+							'</span> <span class="meta">' +
+							new Date(entry.at).toLocaleTimeString() +
+							(entry.viewDuration === undefined
+								? ''
+								: ' · viewDuration ' + entry.viewDuration + 'ms') +
+							(entry.phase ? ' · ' + entry.phase : '') +
+							'</span></div>'
+					)
+					.join('');
+			}
+
+			// The harness records the events itself rather than reading the SDK
+			// queue, because the queue is drained by the flush loop and cleared by
+			// the navigation. A property on the instance shadows the prototype
+			// method, so plugin calls land here too.
+
+			let phase = 'idle';
+
+			function instrument(analytics) {
+				const send = analytics.send.bind(analytics);
+
+				analytics.send = function (eventId, applicationId, properties) {
+					appendLog({
+						at: Date.now(),
+						eventId,
+						phase,
+						viewDuration: (properties || {}).viewDuration,
+					});
+
+					return send(eventId, applicationId, properties);
+				};
+
+				return analytics;
+			}
+
+			function countPageUnloaded(entries, matchPhase) {
+				return entries.filter(
+					(entry) =>
+						entry.eventId === 'pageUnloaded' &&
+						(!matchPhase || entry.phase === matchPhase)
+				);
+			}
+
+			function setState(id, ok, text) {
+				const cell = document.getElementById(id);
+
+				cell.className = 'state ' + (ok ? 'yes' : 'no');
+				cell.textContent = text;
+			}
+
+			// Probe 1 — synthetic dispatch.
+
+			function probe(eventName) {
+				phase = 'probe:' + eventName;
+
+				const before = countPageUnloaded(readLog(), phase).length;
+
+				window.dispatchEvent(new Event(eventName));
+
+				const captured = countPageUnloaded(readLog(), phase);
+				const fired = captured.length > before;
+
+				setState('r-' + eventName, fired, fired ? 'yes' : 'no');
+
+				document.getElementById('d-' + eventName).textContent = fired
+					? captured[captured.length - 1].viewDuration + 'ms'
+					: '—';
+
+				phase = 'idle';
+
+				renderVerdict();
+			}
+
+			function renderVerdict() {
+				const pagehideFired =
+					document.getElementById('r-pagehide').textContent === 'yes';
+				const unloadFired =
+					document.getElementById('r-unload').textContent === 'yes';
+				const bothTried =
+					document.getElementById('r-pagehide').textContent !==
+						'not tried' &&
+					document.getElementById('r-unload').textContent !== 'not tried';
+
+				const el = document.getElementById('verdict');
+
+				if (pagehideFired) {
+					el.className = 'verdict pass';
+					el.innerHTML =
+						'<b>pagehide — LPD-100223 is in this build</b>' +
+						'pageUnloaded is reported from an event Chrome is not ' +
+						'retiring, so it keeps being queued no matter where the ' +
+						'unload deprecation rollout stands.';
+
+					return;
+				}
+
+				if (unloadFired) {
+					el.className = 'verdict legacy';
+					el.innerHTML =
+						'<b>unload — build predates LPD-100223</b>' +
+						'This browser still allows unload, so the event is queued ' +
+						'here. It stops being queued on any page load where Chrome ' +
+						'enforces the deprecation.';
+
+					return;
+				}
+
+				if (bothTried) {
+					el.className = 'verdict blocked';
+					el.innerHTML =
+						'<b>Neither — pageUnloaded is being lost</b>' +
+						'The build predates LPD-100223 and Chrome already refused ' +
+						'the unload listener on this page load. This is the state ' +
+						'customers report as the console violation.';
+
+					return;
+				}
+
+				el.className = 'verdict';
+				el.innerHTML =
+					'<b>No verdict yet</b>Dispatch both events to identify the build.';
+			}
+
+			// Probe 2 — real departure and return.
+
+			function renderTrip(restoredFromBFCache) {
+				if (!localStorage.getItem(TRIP_KEY)) {
+					return;
+				}
+
+				localStorage.removeItem(TRIP_KEY);
+
+				setState('t-trip', true, 'yes');
+				setState(
+					't-bfcache',
+					restoredFromBFCache,
+					restoredFromBFCache ? 'yes' : 'no — full reload'
+				);
+
+				const departures = countPageUnloaded(readLog(), 'departure');
+
+				setState(
+					't-unloaded',
+					departures.length > 0,
+					departures.length > 0
+						? 'yes · viewDuration ' +
+								departures[departures.length - 1].viewDuration +
+								'ms'
+						: 'no'
+				);
+
+				window.__acRestoredFromBFCache = restoredFromBFCache;
+			}
+
+			// A restore does not re-run this script, so the listener has to be in
+			// place before the departure. On a full reload it is registered again
+			// and reports persisted = false.
+
+			window.addEventListener('pageshow', (event) => {
+				if (localStorage.getItem(TRIP_KEY) === 'pending') {
+					renderTrip(Boolean(event.persisted));
+				}
+			});
+
+			document.getElementById('trip').addEventListener('click', () => {
+				phase = 'departure';
+
+				localStorage.setItem(TRIP_KEY, 'pending');
+
+				location.href = 'page-unloaded-away.html';
+			});
+
+			document.getElementById('trip-clear').addEventListener('click', () => {
+				localStorage.removeItem(LOG_KEY);
+
+				renderLog();
+			});
+
+			// Probe 3 — tab events after a restore.
+
+			function countPhase(name) {
+				return readLog().filter((entry) => entry.phase === name).length;
+			}
+
+			function restorePage() {
+				const event = new Event('pageshow');
+
+				// A real restore carries persisted = true; the synthetic one has to
+				// say so explicitly, since the constructor does not take it.
+
+				Object.defineProperty(event, 'persisted', {value: true});
+
+				window.dispatchEvent(event);
+			}
+
+			document.getElementById('probe-tab').addEventListener('click', () => {
+				const real = Boolean(window.__acRestoredFromBFCache);
+
+				// Leaving the page is what disables the tab events. A real restore
+				// already went through it; otherwise replay it here.
+
+				if (!real) {
+					window.dispatchEvent(new Event('beforeunload'));
+				}
+
+				phase = 'leaving';
+
+				const beforeLeaving = countPhase('leaving');
+
+				document.dispatchEvent(new Event('visibilitychange'));
+
+				const silentWhileLeaving = countPhase('leaving') === beforeLeaving;
+
+				setState(
+					't-tab-off',
+					silentWhileLeaving,
+					silentWhileLeaving ? 'yes — silent' : 'no — still reporting'
+				);
+
+				if (!real) {
+					restorePage();
+				}
+
+				phase = 'after-restore';
+
+				const beforeRestore = countPhase('after-restore');
+
+				document.dispatchEvent(new Event('visibilitychange'));
+
+				const fired = countPhase('after-restore') > beforeRestore;
+
+				setState('t-tab', fired, fired ? 'yes' : 'no — still disabled');
+				setState(
+					't-tab-mode',
+					real,
+					real
+						? 'real back/forward cache restore'
+						: 'synthetic — probe 2 did not restore the page'
+				);
+
+				phase = 'idle';
+			});
+
+			document
+				.getElementById('probe-pagehide')
+				.addEventListener('click', () => probe('pagehide'));
+
+			document
+				.getElementById('probe-unload')
+				.addEventListener('click', () => probe('unload'));
+
+			document.getElementById('probe-reset').addEventListener('click', () => {
+				['pagehide', 'unload'].forEach((eventName) => {
+					setState('r-' + eventName, false, 'not tried');
+
+					document.getElementById('d-' + eventName).textContent = '—';
+				});
+
+				renderVerdict();
+			});
+
+			// Chrome exposes the policy this document is under, which is what the
+			// console violation is reporting.
+
+			function describeUnloadPolicy() {
+				const policy = document.featurePolicy || document.permissionsPolicy;
+
+				if (!policy || !policy.allowsFeature) {
+					return 'unknown (no Permissions Policy API)';
+				}
+
+				try {
+					return policy.allowsFeature('unload')
+						? 'allowed in this document'
+						: 'NOT allowed in this document';
+				}
+				catch (error) {
+					return 'unknown (feature not recognized)';
+				}
+			}
+
+			document.getElementById('env').innerHTML =
+				'<div><span class="k">SDK URL</span>&nbsp;&nbsp;<span class="v">' +
+				SDK_URL +
+				'</span></div><div><span class="k">unload policy</span>&nbsp;&nbsp;<span class="v">' +
+				describeUnloadPolicy() +
+				'</span></div><div><span class="k">channelId</span>&nbsp;&nbsp;<span class="v">' +
+				CONFIG.channelId +
+				'</span></div>';
+
+			renderLog();
+
+			const sdk = document.createElement('script');
+
+			sdk.src = SDK_URL;
+
+			sdk.onload = () => {
+				window.__ac = instrument(Analytics.create(CONFIG));
+
+				window.__ac.send('pageViewed', 'Page', {
+					externalReferenceCode: 'harness-page-unloaded',
+				});
+
+				window.__acReady = true;
+			};
+
+			sdk.onerror = () => {
+				document.getElementById('verdict').className = 'verdict blocked';
+				document.getElementById('verdict').innerHTML =
+					'<b>SDK failed to load</b>' + SDK_URL;
+			};
+
+			document.head.appendChild(sdk);
+		</script>
+	</body>
+</html>

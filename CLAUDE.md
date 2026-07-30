@@ -13,11 +13,15 @@ live SDK, drives it, and shows which analytics events fire.
 | `all-events.html` | Fires and verifies **all 29 events** (click "Run all"). |
 | `events-on-load.html` | View/impression events that fire on page load. |
 | `reveal-scenarios.html` | Every plugin's view/impression asset hidden by an ancestor, revealed via a toggle. |
+| `page-unloaded.html` | Which lifecycle event reports `pageUnloaded`, plus the back/forward cache cases (LPD-100223). |
+| `page-unloaded-away.html` | Navigation target for the round trip in `page-unloaded.html`; carries no SDK on purpose. |
 | `style.css` | Shared styles for `events-on-load.html`. |
 | `README.md` | Human-facing overview. |
 
 There is **no vendored SDK bundle** in this repo. Every page loads the SDK from
-the dev CDN at runtime.
+the dev CDN at runtime. `page-unloaded.html` additionally accepts
+`?sdk=<url>`, with `?sdk=local` resolving to `./local/analytics-all-min.js` —
+a gitignored drop point for a bundle built out of the module.
 
 ## How the SDK is embedded
 
@@ -96,6 +100,30 @@ actually visible, including when an ancestor (a closed menu, `opacity:0`,
 CDN, the deployed build fires those events on **load** (geometry only), so
 `reveal-scenarios.html` shows a banner to that effect. No repo change is needed
 once the CDN build includes the fix.
+
+## The unload deprecation and the dev CDN
+
+LPD-100223 moves `pageUnloaded` off `unload` — the event Chrome is retiring —
+and onto `pagehide`, and resets the view-duration mark and the visibility
+plugin's tab-event flag on a persisted `pageshow`, since dropping the `unload`
+listener is what lets a page reach the back/forward cache in the first place.
+
+`page-unloaded.html` reports whichever listener the loaded build registered
+rather than asserting one, so it is correct on both sides of the release: today
+it reports `unload` against the dev CDN and `pagehide` against a local build,
+and it flips on its own once the fix ships to the CDN. Nothing here needs
+changing when that happens.
+
+Two details worth keeping if the page is edited:
+
+- It mirrors every `send()` into its own `localStorage` log by shadowing the
+  instance method, instead of reading `getEvents()`. The SDK queue is drained by
+  the flush loop and does not survive the navigation, so the departure event
+  would be missed.
+- Probe 3 falls back to a synthetic persisted `pageshow` when probe 2 did not
+  produce a real back/forward cache restore, and labels which one it used. Many
+  browsers — automation ones especially — will not restore, and without the
+  fallback the probe would never produce a signal.
 
 ## Conventions for editing the harness pages
 

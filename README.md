@@ -15,6 +15,7 @@ Interactive, in-browser test harness for Liferay's Analytics Cloud client SDK
 | [`all-events.html`](all-events.html) | Smoke test for **all 29 events**. Click **Run all** and watch the checklist go green — page view, asset views/impressions, clicks, downloads, submits, field focus/blur, scroll depth, read, and the lifecycle events (load, tab blur/focus, unload). |
 | [`events-on-load.html`](events-on-load.html) | The view/impression events that fire as assets enter the viewport on load, across all six application types. |
 | [`reveal-scenarios.html`](reveal-scenarios.html) | Every plugin's **view and impression** assets, each hidden by an **ancestor** (`opacity:0` / `visibility:hidden`, the mega-menu case) and revealed via a toggle. |
+| [`page-unloaded.html`](page-unloaded.html) | Which lifecycle event the build uses to report `pageUnloaded` (`unload` or `pagehide`), plus the back/forward cache cases the move to `pagehide` opens up. |
 
 ## How the SDK is loaded
 
@@ -33,6 +34,35 @@ const CONFIG = {
 ```
 
 Every page loads the SDK from `SDK_URL` — the currently deployed dev build.
+
+### Driving a locally built SDK
+
+`page-unloaded.html` accepts `?sdk=<url>` so a build straight out of the module
+can be driven before it reaches the CDN. `?sdk=local` resolves to
+`./local/analytics-all-min.js`, which is gitignored:
+
+```bash
+# in liferay-portal
+cd modules/apps/analytics/analytics-client-js
+yarn build
+
+# in this repo
+cp <liferay-portal>/modules/apps/analytics/analytics-client-js/build/analytics-all-min.js local/
+python3 -m http.server 8765 --bind 127.0.0.1
+```
+
+Then open `http://127.0.0.1:8765/page-unloaded.html?sdk=local`. Serve the page
+over `http` rather than opening the file directly, so the SDK and the page share
+an origin and `localStorage` behaves.
+
+## The unload deprecation and the dev CDN
+
+`page-unloaded.html` covers LPD-100223, which moves `pageUnloaded` off the
+`unload` event Chrome is retiring and onto `pagehide`. The page reports whichever
+listener the loaded build registered, so it stays useful on both sides of the
+release: against today's dev CDN it reports `unload — build predates
+LPD-100223`, and it flips to `pagehide — LPD-100223 is in this build` on its own
+once the fix ships. No repo change is needed.
 
 ## The visibility fix and the dev CDN
 
