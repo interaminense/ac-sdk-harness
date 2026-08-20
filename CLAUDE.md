@@ -164,6 +164,14 @@ editing the page:
   Probe 5 pins that down, because it is the case the backend has to treat as
   anonymous.
 
+**Clear requests** empties the captured log only; it deliberately does not touch
+`ac_*` `localStorage`, so the SDK keeps the identity it already has and the dedup
+guard still applies to the next call (**Reset SDK state** is the button that
+wipes both, via a reload). It is disabled while the probes run: they track the
+log by index, so clearing it mid-run would make `waitForRequests` miss every
+request that follows and report failures that are really bookkeeping. `setBusy`
+owns both buttons for that reason — do not re-enable them separately.
+
 The legacy probe clears `ac_client_identity` before it runs. On a build without
 fields support the first probe already put that exact body on the wire, so the
 dedup guard would swallow the legacy call and the probe would report a failure

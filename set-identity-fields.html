@@ -374,6 +374,13 @@
 		</form>
 
 		<h2>/identity requests</h2>
+		<p>
+			<button class="ghost" id="clear">Clear requests</button>
+			<span class="note"
+				>Empties this log only — the SDK keeps whatever identity it already
+				has, so the dedup guard still applies to the next call.</span
+			>
+		</p>
 		<div class="log" id="log"></div>
 
 		<script>
@@ -528,11 +535,21 @@
 				{name: 'emailAddress', value: EMAIL},
 			];
 
-			async function runProbes() {
+			// The probes track the log by index, so clearing it mid-run would make
+			// waitForRequests miss every request that follows and report failures
+			// that are really bookkeeping. Both buttons move together.
+
+			function setBusy(busy) {
 				const runButton = document.getElementById('run');
 
-				runButton.disabled = true;
-				runButton.textContent = 'Running…';
+				runButton.disabled = busy;
+				runButton.textContent = busy ? 'Running…' : 'Run all probes';
+
+				document.getElementById('clear').disabled = busy;
+			}
+
+			async function runProbes() {
+				setBusy(true);
 
 				[
 					'fields-sent',
@@ -567,8 +584,7 @@
 						setProbe(name, 'fail', 'No /identity request was captured.')
 					);
 
-					runButton.disabled = false;
-					runButton.textContent = 'Run all probes';
+					setBusy(false);
 
 					return;
 				}
@@ -731,8 +747,7 @@
 					);
 				}
 
-				runButton.disabled = false;
-				runButton.textContent = 'Run all probes';
+				setBusy(false);
 			}
 
 			function setVerdict(state, html) {
@@ -771,6 +786,12 @@
 			});
 
 			document.getElementById('run').addEventListener('click', runProbes);
+
+			document.getElementById('clear').addEventListener('click', () => {
+				requests.length = 0;
+
+				renderLog();
+			});
 
 			document.getElementById('reset').addEventListener('click', () => {
 				Object.keys(localStorage)
