@@ -15,6 +15,7 @@ Interactive, in-browser test harness for Liferay's Analytics Cloud client SDK
 | [`all-events.html`](all-events.html) | Smoke test for **all 29 events**. Click **Run all** and watch the checklist go green — page view, asset views/impressions, clicks, downloads, submits, field focus/blur, scroll depth, read, and the lifecycle events (load, tab blur/focus, unload). |
 | [`events-on-load.html`](events-on-load.html) | The view/impression events that fire as assets enter the viewport on load, across all six application types. |
 | [`reveal-scenarios.html`](reveal-scenarios.html) | Every plugin's **view and impression** assets, each hidden by an **ancestor** (`opacity:0` / `visibility:hidden`, the mega-menu case) and revealed via a toggle. |
+| [`flush.html`](flush.html) | `Analytics.flush()` (LPD-103258). Sends the queue on demand and times how long the Promise takes to settle, including against a deliberately stalled endpoint. |
 | [`set-identity-fields.html`](set-identity-fields.html) | The optional `fields` array on `setIdentity()` (LPD-103257). Shows the exact `/identity` request body on the wire and probes the normalization and dedup rules that hang off it. |
 | [`page-unloaded.html`](page-unloaded.html) | Which lifecycle event the build uses to report `pageUnloaded` (`unload` or `pagehide`), plus the back/forward cache cases the move to `pagehide` opens up. |
 
@@ -38,8 +39,9 @@ Every page loads the SDK from `SDK_URL` — the currently deployed dev build.
 
 ### Driving a locally built SDK
 
-`page-unloaded.html` and `set-identity-fields.html` accept `?sdk=<url>` so a
-build straight out of the module can be driven before it reaches the CDN. `?sdk=local` resolves to
+`page-unloaded.html`, `set-identity-fields.html` and `flush.html` accept
+`?sdk=<url>` so a build straight out of the module can be driven before it
+reaches the CDN. `?sdk=local` resolves to
 `./local/analytics-all-min.js`, which is gitignored:
 
 ```bash
@@ -83,6 +85,24 @@ Three behaviors are worth knowing when reading the probes:
   the email **both** top level (it becomes `emailAddressHashed`, the individual
   anchor) and inside `fields` as `emailAddress` (the hash is one way, so the
   plaintext is what populates the Individual's column).
+
+## flush() and the sequential-queue ceiling
+
+`flush.html` covers LPD-103258, which makes `Analytics.flush()` public: it sends
+everything queued now instead of waiting for the flush loop, and returns a
+Promise that settles once the in-flight requests settle.
+
+The page sets a **10 minute** `flushInterval` on purpose. The loop then never
+fires, so every request it captures can only have come from an explicit
+`flush()` — otherwise the probes could not tell the two apart.
+
+One thing the page measures is worth knowing before reading the numbers.
+`QueueFlushService` walks its four queues **sequentially**, so
+`REQUEST_TIMEOUT` (5000ms) bounds each queue rather than the flush as a whole.
+Against a stalled endpoint a single queue settles at ~5s, but the
+**Measure the ceiling** button — which puts items in more than one queue first —
+reports multiples of that. Empty queues cost nothing, so the realistic
+trial-form path (one identity message) is unaffected.
 
 ## The unload deprecation and the dev CDN
 

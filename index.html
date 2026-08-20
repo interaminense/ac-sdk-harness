@@ -160,6 +160,18 @@
 			</p>
 		</a>
 
+		<a class="card" href="flush.html">
+			<h2>flush() <span class="tag">LPD-103258</span></h2>
+			<p>
+				<code>Analytics.flush()</code> — send everything queued now and wait
+				for it. Runs with a 10 minute flush interval so the loop never fires,
+				then probes that the Promise settles after the request rather than
+				before, that an empty queue is free, and that a hanging endpoint still
+				settles on <code>REQUEST_TIMEOUT</code>. Measures the sequential-queue
+				ceiling too.
+			</p>
+		</a>
+
 		<div class="config">
 			<h3>Configuration (Analytics Cloud dev)</h3>
 			<div><span class="k">SDK URL</span>&nbsp;&nbsp;<span class="v">https://analytics-js-dev-cdn.liferay.com</span></div>

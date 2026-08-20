@@ -13,6 +13,7 @@ live SDK, drives it, and shows which analytics events fire.
 | `all-events.html` | Fires and verifies **all 29 events** (click "Run all"). |
 | `events-on-load.html` | View/impression events that fire on page load. |
 | `reveal-scenarios.html` | Every plugin's view/impression asset hidden by an ancestor, revealed via a toggle. |
+| `flush.html` | `Analytics.flush()` and the request-timeout behavior around it (LPD-103258). |
 | `set-identity-fields.html` | The optional `fields` array on `setIdentity()` and the identity dedup that hangs off it (LPD-103257). |
 | `page-unloaded.html` | Which lifecycle event reports `pageUnloaded`, plus the back/forward cache cases (LPD-100223). |
 | `page-unloaded-away.html` | Navigation target for the round trip in `page-unloaded.html`; carries no SDK on purpose. |
@@ -20,8 +21,8 @@ live SDK, drives it, and shows which analytics events fire.
 | `README.md` | Human-facing overview. |
 
 There is **no vendored SDK bundle** in this repo. Every page loads the SDK from
-the dev CDN at runtime. `page-unloaded.html` and `set-identity-fields.html`
-additionally accept `?sdk=<url>`, with `?sdk=local` resolving to
+the dev CDN at runtime. `page-unloaded.html`, `set-identity-fields.html` and
+`flush.html` additionally accept `?sdk=<url>`, with `?sdk=local` resolving to
 `./local/analytics-all-min.js` — a gitignored drop point for a bundle built out
 of the module.
 
@@ -181,6 +182,34 @@ Probes that assert **nothing** was sent have to outwait the identity queue,
 which flushes every 2s — hence `WAIT_MS = 3 * FLUSH_INTERVAL` and a full run
 taking about half a minute. Shortening that wait turns those probes into false
 passes.
+
+## flush() and the dev CDN
+
+LPD-103258 makes `Analytics.flush()` public. `flush.html` detects it rather than
+assuming it (`typeof __ac.flush === 'function'`), so it is correct on both sides
+of the release.
+
+Three things about the page are load-bearing:
+
+- It sets `flushInterval` to **600000**. With the default interval the flush
+  loop would send the queued messages on its own and no probe could attribute a
+  request to `flush()`. Lower it and several probes become meaningless rather
+  than failing, which is worse.
+- It shadows `fetch` for two reasons: to log what left the page, and so a
+  `stalling` flag can hang the endpoint. Hanging the endpoint from the harness
+  is what lets the request-timeout path be observed without touching the SDK.
+- `queueIdentity()` uses a fresh `Date.now()` email every call. Reusing one
+  would produce the same identity hash, the SDK would deduplicate it, and the
+  probe would measure an empty flush while looking like it measured a real one.
+
+**The sequential-queue ceiling.** `QueueFlushService` reduces over its four
+queues with `previousPromise.then(...)`, so `REQUEST_TIMEOUT` bounds each queue,
+not the flush. The **Measure the ceiling** button demonstrates it: with items in
+more than one queue and the endpoint stalled, `flush()` settles at a multiple of
+5s. This is a real gap against the parent story's NFR, which reads as though the
+bound were global. Closing it would mean adding a timeout mechanism, which
+LPD-103258 explicitly rules out, so the page measures it rather than asserting
+on it.
 
 ## Conventions for editing the harness pages
 

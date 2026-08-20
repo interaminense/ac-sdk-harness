@@ -1,0 +1,768 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta content="width=device-width, initial-scale=1.0" name="viewport" />
+
+		<title>ac-sdk-harness — flush()</title>
+
+		<style>
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				background: #f8fafc;
+				color: #0f172a;
+				font-family: system-ui, sans-serif;
+				line-height: 1.5;
+				margin: 0 auto;
+				max-width: 980px;
+				padding: 40px 24px 64px;
+			}
+			h1 {
+				font-size: 26px;
+				margin: 0 0 4px;
+			}
+			h2 {
+				font-size: 17px;
+				margin: 32px 0 10px;
+			}
+			.lede {
+				color: #475569;
+				margin: 0 0 24px;
+			}
+			a {
+				color: #1d4ed8;
+			}
+			code {
+				background: #e2e8f0;
+				border-radius: 4px;
+				font-size: 0.9em;
+				padding: 1px 5px;
+			}
+			.env {
+				background: #0f172a;
+				border-radius: 10px;
+				color: #e2e8f0;
+				font-family: ui-monospace, monospace;
+				font-size: 12.5px;
+				overflow-x: auto;
+				padding: 16px 20px;
+			}
+			.env .k {
+				color: #93c5fd;
+				display: inline-block;
+				min-width: 150px;
+			}
+			.env .v {
+				color: #86efac;
+				word-break: break-all;
+			}
+			.verdict {
+				border-radius: 10px;
+				font-size: 14px;
+				margin: 18px 0 0;
+				padding: 14px 18px;
+			}
+			.verdict.pending {
+				background: #f1f5f9;
+				border: 1px solid #cbd5e1;
+				color: #475569;
+			}
+			.verdict.supported {
+				background: #ecfdf5;
+				border: 1px solid #6ee7b7;
+				color: #065f46;
+			}
+			.verdict.missing {
+				background: #fffbeb;
+				border: 1px solid #fcd34d;
+				color: #92400e;
+			}
+			.verdict.blocked {
+				background: #fef2f2;
+				border: 1px solid #fca5a5;
+				color: #991b1b;
+			}
+			button {
+				background: #1d4ed8;
+				border: 0;
+				border-radius: 7px;
+				color: #fff;
+				cursor: pointer;
+				font-size: 14px;
+				font-weight: 600;
+				padding: 9px 18px;
+			}
+			button:disabled {
+				background: #94a3b8;
+				cursor: not-allowed;
+			}
+			button.ghost {
+				background: #fff;
+				border: 1px solid #cbd5e1;
+				color: #0f172a;
+			}
+			.probe {
+				background: #fff;
+				border: 1px solid #e2e8f0;
+				border-left-width: 4px;
+				border-radius: 8px;
+				margin-bottom: 10px;
+				padding: 12px 16px;
+			}
+			.probe[data-state='pass'] {
+				border-left-color: #10b981;
+			}
+			.probe[data-state='fail'] {
+				border-left-color: #ef4444;
+			}
+			.probe[data-state='na'] {
+				border-left-color: #cbd5e1;
+				opacity: 0.65;
+			}
+			.probe[data-state='running'] {
+				border-left-color: #f59e0b;
+			}
+			.probe[data-state='idle'] {
+				border-left-color: #e2e8f0;
+			}
+			.probe .title {
+				font-size: 14px;
+				font-weight: 600;
+			}
+			.probe .title .badge {
+				border-radius: 999px;
+				font-size: 10.5px;
+				font-weight: 700;
+				margin-right: 8px;
+				padding: 2px 8px;
+				text-transform: uppercase;
+			}
+			.probe[data-state='pass'] .badge {
+				background: #d1fae5;
+				color: #065f46;
+			}
+			.probe[data-state='fail'] .badge {
+				background: #fee2e2;
+				color: #991b1b;
+			}
+			.probe[data-state='na'] .badge,
+			.probe[data-state='idle'] .badge {
+				background: #e2e8f0;
+				color: #475569;
+			}
+			.probe[data-state='running'] .badge {
+				background: #fef3c7;
+				color: #92400e;
+			}
+			.probe .what {
+				color: #475569;
+				font-size: 13px;
+				margin-top: 3px;
+			}
+			.probe .detail {
+				color: #0f172a;
+				font-family: ui-monospace, monospace;
+				font-size: 12px;
+				margin-top: 7px;
+				white-space: pre-wrap;
+				word-break: break-all;
+			}
+			.panel {
+				background: #fff;
+				border: 1px solid #e2e8f0;
+				border-radius: 8px;
+				padding: 16px 18px;
+			}
+			.panel .row {
+				align-items: center;
+				display: flex;
+				flex-wrap: wrap;
+				gap: 10px;
+			}
+			.panel .hint {
+				color: #64748b;
+				font-size: 12px;
+			}
+			.big {
+				font-family: ui-monospace, monospace;
+				font-size: 26px;
+				font-weight: 700;
+				margin-top: 10px;
+			}
+			.log {
+				background: #0f172a;
+				border-radius: 10px;
+				color: #e2e8f0;
+				font-family: ui-monospace, monospace;
+				font-size: 12px;
+				max-height: 380px;
+				overflow: auto;
+				padding: 14px 18px;
+			}
+			.log .entry {
+				border-bottom: 1px solid #1e293b;
+				padding: 6px 0;
+			}
+			.log .entry:last-child {
+				border-bottom: 0;
+			}
+			.log .when {
+				color: #94a3b8;
+			}
+			.log .who {
+				color: #fbbf24;
+			}
+			.empty {
+				color: #64748b;
+			}
+			.note {
+				color: #64748b;
+				font-size: 13px;
+			}
+			.warn {
+				background: #fffbeb;
+				border: 1px solid #fcd34d;
+				border-radius: 8px;
+				color: #92400e;
+				font-size: 13px;
+				padding: 12px 16px;
+			}
+		</style>
+	</head>
+
+	<body>
+		<h1>flush()</h1>
+		<p class="lede">
+			Drives <code>Analytics.flush()</code> (LPD-103258) — the method that
+			sends every queued message now instead of waiting for the flush loop,
+			and resolves once the in-flight requests settle. This page runs with a
+			<strong>10 minute flush interval</strong> so the loop never fires on its
+			own: every request you see below was caused by an explicit
+			<code>flush()</code>. Load a different build with
+			<code>?sdk=&lt;url&gt;</code>; <code>?sdk=local</code> resolves to
+			<code>./local/analytics-all-min.js</code>.
+		</p>
+
+		<div class="env" id="env"></div>
+
+		<div class="verdict pending" id="verdict">
+			Waiting for the SDK to load…
+		</div>
+
+		<h2>Probes</h2>
+		<p class="note">
+			Takes about 10 seconds — one probe deliberately stalls the endpoint to
+			watch the request timeout do its job.
+		</p>
+		<p>
+			<button disabled id="run">Run all probes</button>
+			<button class="ghost" id="reset">Reset SDK state</button>
+		</p>
+
+		<div id="probes">
+			<div class="probe" data-probe="exists" data-state="idle">
+				<div class="title">
+					<span class="badge">idle</span><code>flush()</code> is a public
+					method
+				</div>
+				<div class="what">
+					The instance exposes <code>flush</code> and it returns a Promise.
+				</div>
+				<div class="detail"></div>
+			</div>
+			<div class="probe" data-probe="sends" data-state="idle">
+				<div class="title">
+					<span class="badge">idle</span>flush sends what is queued
+				</div>
+				<div class="what">
+					Nothing leaves on its own at this interval; the request appears only
+					after <code>flush()</code>.
+				</div>
+				<div class="detail"></div>
+			</div>
+			<div class="probe" data-probe="after-send" data-state="idle">
+				<div class="title">
+					<span class="badge">idle</span>flush resolves after the request, not
+					before
+				</div>
+				<div class="what">
+					The Promise must not settle until the send has actually completed.
+				</div>
+				<div class="detail"></div>
+			</div>
+			<div class="probe" data-probe="empty" data-state="idle">
+				<div class="title">
+					<span class="badge">idle</span>flush resolves right away when
+					nothing is queued
+				</div>
+				<div class="what">
+					An empty queue must not cost the caller a round trip.
+				</div>
+				<div class="detail"></div>
+			</div>
+			<div class="probe" data-probe="in-flight" data-state="idle">
+				<div class="title">
+					<span class="badge">idle</span>a second flush waits for the one in
+					flight
+				</div>
+				<div class="what">
+					Calling <code>flush()</code> during a flush must not hand back an
+					already-resolved Promise.
+				</div>
+				<div class="detail"></div>
+			</div>
+			<div class="probe" data-probe="timeout" data-state="idle">
+				<div class="title">
+					<span class="badge">idle</span>a stalled endpoint settles on the
+					request timeout
+				</div>
+				<div class="what">
+					With the endpoint hanging, <code>flush()</code> still settles — via
+					the existing <code>REQUEST_TIMEOUT</code>, around 5s.
+				</div>
+				<div class="detail"></div>
+			</div>
+		</div>
+
+		<h2>Trial-form simulation</h2>
+		<p class="note">
+			What the Marketo integration script does: identify the visitor, then
+			<code>flush().finally(...)</code> before navigating. The number below is
+			how long the redirect would have been held.
+		</p>
+		<div class="panel">
+			<div class="row">
+				<button disabled id="simulate">Submit and flush</button>
+				<label
+					><input id="stall" type="checkbox" /> stall the endpoint (worst
+					case)</label
+				>
+				<span class="hint" id="simHint"
+					>Queues an identity, then measures <code>flush()</code>.</span
+				>
+			</div>
+			<div class="big" id="simResult">—</div>
+		</div>
+
+		<h2>Sequential-queue ceiling</h2>
+		<div class="warn">
+			<code>QueueFlushService</code> processes its four queues
+			<strong>sequentially</strong>, so the request timeout applies per queue
+			rather than to the flush as a whole. With every queue stalled the ceiling
+			is 4 × <code>REQUEST_TIMEOUT</code>, not one. This measures it — it takes
+			up to 20 seconds on purpose.
+		</div>
+		<p>
+			<button class="ghost" disabled id="ceiling">Measure the ceiling</button>
+			<span class="hint" id="ceilingHint"></span>
+		</p>
+
+		<h2>Requests</h2>
+		<div class="log" id="log"></div>
+
+		<script>
+			// Same shape liferay.com uses, with one deliberate difference: a very
+			// long flushInterval, so the flush loop never sends anything and every
+			// request below can be attributed to an explicit flush() call.
+
+			const DEV_CDN_URL = 'https://analytics-js-dev-cdn.liferay.com';
+			const LOCAL_URL = './local/analytics-all-min.js';
+
+			const requestedSDK = new URLSearchParams(location.search).get('sdk');
+
+			const SDK_URL =
+				requestedSDK === 'local' ? LOCAL_URL : requestedSDK || DEV_CDN_URL;
+
+			const FLUSH_INTERVAL = 600000;
+			const REQUEST_TIMEOUT = 5000;
+
+			const CONFIG = {
+				channelId: '831904237734003774',
+				dataSourceId: '820802606605225785',
+				endpointUrl: 'https://osbasahpublisher-ac-internal.lfr.cloud',
+				flushInterval: FLUSH_INTERVAL,
+				projectId: 'asah59dbaa580b264c578bb15c878dd363f0',
+			};
+
+			Object.keys(localStorage)
+				.filter((key) => key.startsWith('ac_'))
+				.forEach((key) => localStorage.removeItem(key));
+
+			// Shadowing fetch does double duty here: it logs what actually left the
+			// page, and `stalling` lets a probe hang the endpoint so the request
+			// timeout can be observed without touching the SDK.
+
+			const requests = [];
+
+			let stalling = false;
+
+			const nativeFetch = window.fetch.bind(window);
+
+			window.fetch = function (url, options) {
+				const href = typeof url === 'string' ? url : url && url.url;
+
+				if (href && href.indexOf(CONFIG.endpointUrl) === 0) {
+					requests.push({
+						at: new Date(),
+						stalled: stalling,
+						url: href,
+					});
+
+					renderLog();
+
+					if (stalling) {
+						return new Promise(() => {});
+					}
+				}
+
+				return nativeFetch(url, options);
+			};
+
+			function renderLog() {
+				const log = document.getElementById('log');
+
+				if (!requests.length) {
+					log.innerHTML =
+						'<div class="empty">No request captured yet.</div>';
+
+					return;
+				}
+
+				log.innerHTML = requests
+					.map((request, index) => {
+						const path = request.url.replace(CONFIG.endpointUrl, '');
+
+						return (
+							'<div class="entry"><span class="when">#' +
+							(index + 1) +
+							' · ' +
+							request.at.toLocaleTimeString() +
+							'</span> <span class="who">POST ' +
+							path +
+							'</span>' +
+							(request.stalled ? ' <em>(stalled)</em>' : '') +
+							'</div>'
+						);
+					})
+					.join('');
+			}
+
+			function setProbe(name, state, detail) {
+				const probe = document.querySelector('[data-probe="' + name + '"]');
+
+				probe.dataset.state = state;
+				probe.querySelector('.badge').textContent = state;
+				probe.querySelector('.detail').textContent = detail || '';
+			}
+
+			function setVerdict(state, html) {
+				const verdict = document.getElementById('verdict');
+
+				verdict.className = 'verdict ' + state;
+				verdict.innerHTML = html;
+			}
+
+			function setBusy(busy) {
+				document.getElementById('run').disabled = busy;
+				document.getElementById('run').textContent = busy
+					? 'Running…'
+					: 'Run all probes';
+				document.getElementById('simulate').disabled = busy;
+				document.getElementById('ceiling').disabled = busy;
+			}
+
+			// Queues one identity message. A fresh email each time, so the identity
+			// hash always changes and the message is never deduplicated away.
+
+			function queueIdentity() {
+				return window.__ac.setIdentity({
+					email: 'flush-' + Date.now() + '@example.com',
+					name: 'Flush Harness',
+				});
+			}
+
+			async function timed(promise) {
+				const started = performance.now();
+
+				await promise;
+
+				return Math.round(performance.now() - started);
+			}
+
+			const PROBES = [
+				'exists',
+				'sends',
+				'after-send',
+				'empty',
+				'in-flight',
+				'timeout',
+			];
+
+			async function runProbes() {
+				setBusy(true);
+
+				PROBES.forEach((name) => setProbe(name, 'running', ''));
+
+				// 1 — is flush() even there?
+
+				const flush = window.__ac.flush;
+				const supported = typeof flush === 'function';
+
+				if (!supported) {
+					setProbe(
+						'exists',
+						'fail',
+						'typeof __ac.flush === "' + typeof flush + '"'
+					);
+
+					PROBES.slice(1).forEach((name) =>
+						setProbe(name, 'na', 'Not applicable without flush().')
+					);
+
+					setVerdict(
+						'missing',
+						'<b>This build has no flush().</b> Point ?sdk= at a build that ' +
+							'carries LPD-103258.'
+					);
+
+					setBusy(false);
+
+					return;
+				}
+
+				const returned = window.__ac.flush();
+				const isPromise = returned && typeof returned.then === 'function';
+
+				await returned;
+
+				setProbe(
+					'exists',
+					isPromise ? 'pass' : 'fail',
+					isPromise
+						? 'flush() returned a Promise'
+						: 'flush() returned ' + typeof returned
+				);
+
+				setVerdict(
+					'supported',
+					'<b>This build has flush().</b> Every probe below is meaningful.'
+				);
+
+				// 2 + 3 — the queued message goes out, and only once the request has
+				// completed does the Promise settle.
+
+				let before = requests.length;
+
+				await queueIdentity();
+
+				const queuedWithoutSending = requests.length === before;
+
+				const elapsed = await timed(window.__ac.flush());
+
+				const sent = requests.length > before;
+
+				setProbe(
+					'sends',
+					queuedWithoutSending && sent ? 'pass' : 'fail',
+					queuedWithoutSending
+						? sent
+							? 'nothing sent while queued, ' +
+								(requests.length - before) +
+								' request(s) after flush()'
+							: 'flush() sent nothing'
+						: 'a request left before flush() was called'
+				);
+
+				setProbe(
+					'after-send',
+					sent ? 'pass' : 'fail',
+					'flush() settled in ' +
+						elapsed +
+						'ms, with the request already captured'
+				);
+
+				// 4 — an empty queue must be cheap.
+
+				const emptyElapsed = await timed(window.__ac.flush());
+
+				setProbe(
+					'empty',
+					emptyElapsed < 1000 ? 'pass' : 'fail',
+					'settled in ' + emptyElapsed + 'ms with nothing queued'
+				);
+
+				// 5 — a second flush during an in-flight one must not resolve early.
+				// Stalling the endpoint makes the window wide enough to observe.
+
+				before = requests.length;
+
+				await queueIdentity();
+
+				stalling = true;
+
+				let firstSettled = false;
+				let secondSettled = false;
+
+				const first = window.__ac.flush().then(() => {
+					firstSettled = true;
+				});
+				const second = window.__ac.flush().then(() => {
+					secondSettled = true;
+				});
+
+				await new Promise((resolve) => setTimeout(resolve, 1000));
+
+				const heldOpen = !firstSettled && !secondSettled;
+
+				await Promise.all([first, second]);
+
+				stalling = false;
+
+				setProbe(
+					'in-flight',
+					heldOpen && secondSettled ? 'pass' : 'fail',
+					heldOpen
+						? 'neither Promise settled at 1s; both settled after'
+						: 'a Promise settled while the request was still stalled'
+				);
+
+				// 6 — the stalled endpoint settles through REQUEST_TIMEOUT.
+
+				before = requests.length;
+
+				await queueIdentity();
+
+				stalling = true;
+
+				const stalledElapsed = await timed(window.__ac.flush());
+
+				stalling = false;
+
+				const withinBound =
+					stalledElapsed >= REQUEST_TIMEOUT - 500 &&
+					stalledElapsed < REQUEST_TIMEOUT * 2;
+
+				setProbe(
+					'timeout',
+					withinBound ? 'pass' : 'fail',
+					'settled in ' +
+						stalledElapsed +
+						'ms against a hanging endpoint (REQUEST_TIMEOUT is ' +
+						REQUEST_TIMEOUT +
+						'ms)'
+				);
+
+				setBusy(false);
+			}
+
+			async function simulate() {
+				setBusy(true);
+
+				document.getElementById('simResult').textContent = '…';
+
+				stalling = document.getElementById('stall').checked;
+
+				await queueIdentity();
+
+				const elapsed = await timed(window.__ac.flush());
+
+				stalling = false;
+
+				document.getElementById('simResult').textContent = elapsed + 'ms';
+				document.getElementById('simHint').textContent =
+					'The redirect would have been held for ' + elapsed + 'ms.';
+
+				setBusy(false);
+			}
+
+			// Puts an item in every queue, stalls the endpoint, and times the flush.
+			// The point is to show the ceiling is per queue, not per flush.
+
+			async function measureCeiling() {
+				setBusy(true);
+
+				document.getElementById('ceilingHint').textContent = 'measuring…';
+
+				await queueIdentity();
+
+				window.__ac.send('pageViewed', 'Page', {
+					externalReferenceCode: 'harness-flush-ceiling',
+				});
+				window.__ac.track('customEvent', {
+					externalReferenceCode: 'harness-flush-ceiling',
+				});
+
+				stalling = true;
+
+				const elapsed = await timed(window.__ac.flush());
+
+				stalling = false;
+
+				document.getElementById('ceilingHint').textContent =
+					'flush() settled in ' +
+					elapsed +
+					'ms — REQUEST_TIMEOUT is ' +
+					REQUEST_TIMEOUT +
+					'ms, so this is roughly ' +
+					Math.round((elapsed / REQUEST_TIMEOUT) * 10) / 10 +
+					'× the per-queue bound.';
+
+				setBusy(false);
+			}
+
+			document.getElementById('run').addEventListener('click', runProbes);
+			document.getElementById('simulate').addEventListener('click', simulate);
+			document
+				.getElementById('ceiling')
+				.addEventListener('click', measureCeiling);
+
+			document.getElementById('reset').addEventListener('click', () => {
+				Object.keys(localStorage)
+					.filter((key) => key.startsWith('ac_'))
+					.forEach((key) => localStorage.removeItem(key));
+
+				location.reload();
+			});
+
+			renderLog();
+
+			document.getElementById('env').innerHTML =
+				'<div><span class="k">SDK URL</span><span class="v">' +
+				SDK_URL +
+				'</span></div><div><span class="k">flushInterval</span><span class="v">' +
+				FLUSH_INTERVAL +
+				'ms (the loop never fires)</span></div><div><span class="k">endpointUrl</span><span class="v">' +
+				CONFIG.endpointUrl +
+				'</span></div>';
+
+			const sdk = document.createElement('script');
+
+			sdk.src = SDK_URL;
+
+			sdk.onload = () => {
+				window.__ac = Analytics.create(CONFIG);
+
+				document.getElementById('run').disabled = false;
+				document.getElementById('simulate').disabled = false;
+				document.getElementById('ceiling').disabled = false;
+
+				setVerdict(
+					'pending',
+					'SDK loaded (version ' +
+						(window.__ac.version || 'unknown') +
+						'). Click <b>Run all probes</b> to find out whether it carries flush().'
+				);
+
+				window.__acReady = true;
+			};
+
+			sdk.onerror = () => {
+				setVerdict('blocked', '<b>SDK failed to load</b> — ' + SDK_URL);
+			};
+
+			document.head.appendChild(sdk);
+		</script>
+	</body>
+</html>
