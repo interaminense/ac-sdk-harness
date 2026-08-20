@@ -1,0 +1,825 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta content="width=device-width, initial-scale=1.0" name="viewport" />
+
+		<title>ac-sdk-harness — setIdentity fields</title>
+
+		<style>
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				background: #f8fafc;
+				color: #0f172a;
+				font-family: system-ui, sans-serif;
+				line-height: 1.5;
+				margin: 0 auto;
+				max-width: 980px;
+				padding: 40px 24px 64px;
+			}
+			h1 {
+				font-size: 26px;
+				margin: 0 0 4px;
+			}
+			h2 {
+				font-size: 17px;
+				margin: 32px 0 10px;
+			}
+			.lede {
+				color: #475569;
+				margin: 0 0 24px;
+			}
+			a {
+				color: #1d4ed8;
+			}
+			code {
+				background: #e2e8f0;
+				border-radius: 4px;
+				font-size: 0.9em;
+				padding: 1px 5px;
+			}
+			.env {
+				background: #0f172a;
+				border-radius: 10px;
+				color: #e2e8f0;
+				font-family: ui-monospace, monospace;
+				font-size: 12.5px;
+				overflow-x: auto;
+				padding: 16px 20px;
+			}
+			.env .k {
+				color: #93c5fd;
+				display: inline-block;
+				min-width: 150px;
+			}
+			.env .v {
+				color: #86efac;
+				word-break: break-all;
+			}
+			.verdict {
+				border-radius: 10px;
+				font-size: 14px;
+				margin: 18px 0 0;
+				padding: 14px 18px;
+			}
+			.verdict.pending {
+				background: #f1f5f9;
+				border: 1px solid #cbd5e1;
+				color: #475569;
+			}
+			.verdict.supported {
+				background: #ecfdf5;
+				border: 1px solid #6ee7b7;
+				color: #065f46;
+			}
+			.verdict.missing {
+				background: #fffbeb;
+				border: 1px solid #fcd34d;
+				color: #92400e;
+			}
+			.verdict.blocked {
+				background: #fef2f2;
+				border: 1px solid #fca5a5;
+				color: #991b1b;
+			}
+			button {
+				background: #1d4ed8;
+				border: 0;
+				border-radius: 7px;
+				color: #fff;
+				cursor: pointer;
+				font-size: 14px;
+				font-weight: 600;
+				padding: 9px 18px;
+			}
+			button:disabled {
+				background: #94a3b8;
+				cursor: not-allowed;
+			}
+			button.ghost {
+				background: #fff;
+				border: 1px solid #cbd5e1;
+				color: #0f172a;
+			}
+			.probe {
+				background: #fff;
+				border: 1px solid #e2e8f0;
+				border-left-width: 4px;
+				border-radius: 8px;
+				margin-bottom: 10px;
+				padding: 12px 16px;
+			}
+			.probe[data-state='pass'] {
+				border-left-color: #10b981;
+			}
+			.probe[data-state='fail'] {
+				border-left-color: #ef4444;
+			}
+			.probe[data-state='na'] {
+				border-left-color: #cbd5e1;
+				opacity: 0.65;
+			}
+			.probe[data-state='running'] {
+				border-left-color: #f59e0b;
+			}
+			.probe[data-state='idle'] {
+				border-left-color: #e2e8f0;
+			}
+			.probe .title {
+				font-size: 14px;
+				font-weight: 600;
+			}
+			.probe .title .badge {
+				border-radius: 999px;
+				font-size: 10.5px;
+				font-weight: 700;
+				margin-right: 8px;
+				padding: 2px 8px;
+				text-transform: uppercase;
+			}
+			.probe[data-state='pass'] .badge {
+				background: #d1fae5;
+				color: #065f46;
+			}
+			.probe[data-state='fail'] .badge {
+				background: #fee2e2;
+				color: #991b1b;
+			}
+			.probe[data-state='na'] .badge,
+			.probe[data-state='idle'] .badge {
+				background: #e2e8f0;
+				color: #475569;
+			}
+			.probe[data-state='running'] .badge {
+				background: #fef3c7;
+				color: #92400e;
+			}
+			.probe .what {
+				color: #475569;
+				font-size: 13px;
+				margin-top: 3px;
+			}
+			.probe .detail {
+				color: #0f172a;
+				font-family: ui-monospace, monospace;
+				font-size: 12px;
+				margin-top: 7px;
+				white-space: pre-wrap;
+				word-break: break-all;
+			}
+			form.manual {
+				background: #fff;
+				border: 1px solid #e2e8f0;
+				border-radius: 8px;
+				display: grid;
+				gap: 10px 14px;
+				grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+				padding: 16px 18px;
+			}
+			form.manual label {
+				display: block;
+				font-size: 12px;
+				font-weight: 600;
+			}
+			form.manual input {
+				border: 1px solid #cbd5e1;
+				border-radius: 6px;
+				font-size: 13px;
+				margin-top: 3px;
+				padding: 7px 9px;
+				width: 100%;
+			}
+			form.manual .actions {
+				align-items: end;
+				display: flex;
+				gap: 10px;
+				grid-column: 1 / -1;
+			}
+			form.manual .hint {
+				color: #64748b;
+				font-size: 12px;
+			}
+			.log {
+				background: #0f172a;
+				border-radius: 10px;
+				color: #e2e8f0;
+				font-family: ui-monospace, monospace;
+				font-size: 12px;
+				max-height: 460px;
+				overflow: auto;
+				padding: 14px 18px;
+			}
+			.log .entry {
+				border-bottom: 1px solid #1e293b;
+				padding: 8px 0;
+			}
+			.log .entry:last-child {
+				border-bottom: 0;
+			}
+			.log .when {
+				color: #94a3b8;
+			}
+			.log .who {
+				color: #fbbf24;
+			}
+			.log pre {
+				margin: 5px 0 0;
+				white-space: pre-wrap;
+				word-break: break-all;
+			}
+			.log .key {
+				color: #93c5fd;
+			}
+			.empty {
+				color: #64748b;
+			}
+			.note {
+				color: #64748b;
+				font-size: 13px;
+			}
+		</style>
+	</head>
+
+	<body>
+		<h1>setIdentity fields</h1>
+		<p class="lede">
+			Drives <code>Analytics.setIdentity()</code> and shows the exact
+			<code>/identity</code> request body the SDK puts on the wire — so the
+			optional <code>fields</code> array (LPD-103257) can be verified against a
+			real build. Every request below is real and is flushed to the dev
+			backend. Load a different build with <code>?sdk=&lt;url&gt;</code>;
+			<code>?sdk=local</code> resolves to
+			<code>./local/analytics-all-min.js</code>.
+		</p>
+
+		<div class="env" id="env"></div>
+
+		<div class="verdict pending" id="verdict">
+			Waiting for the SDK to load…
+		</div>
+
+		<h2>Probes</h2>
+		<p class="note">
+			Runs in sequence and takes about half a minute — the identity queue
+			flushes every 2s, and three of the probes have to wait out that window to
+			prove that <em>nothing</em> was sent.
+		</p>
+		<p>
+			<button disabled id="run">Run all probes</button>
+			<button class="ghost" id="reset">Reset SDK state</button>
+		</p>
+
+		<div id="probes">
+			<div class="probe" data-probe="fields-sent" data-state="idle">
+				<div class="title">
+					<span class="badge">idle</span>fields reach the Identity Service
+				</div>
+				<div class="what">
+					A call carrying <code>fields</code> puts them in the
+					<code>/identity</code> body.
+				</div>
+				<div class="detail"></div>
+			</div>
+			<div class="probe" data-probe="fields-sorted" data-state="idle">
+				<div class="title">
+					<span class="badge">idle</span>fields are normalized by name
+				</div>
+				<div class="what">
+					The fields are sent sorted by <code>name</code>, whatever order the
+					caller used.
+				</div>
+				<div class="detail"></div>
+			</div>
+			<div class="probe" data-probe="reorder-dedup" data-state="idle">
+				<div class="title">
+					<span class="badge">idle</span>reordering the same fields sends
+					nothing
+				</div>
+				<div class="what">
+					Same data in a different order must hash the same, so the identity
+					is deduplicated.
+				</div>
+				<div class="detail"></div>
+			</div>
+			<div class="probe" data-probe="value-change" data-state="idle">
+				<div class="title">
+					<span class="badge">idle</span>changing a field value sends a new
+					identity
+				</div>
+				<div class="what">
+					The resubmit case: <code>lastName</code> goes from empty to filled
+					and must reach the service.
+				</div>
+				<div class="detail"></div>
+			</div>
+			<div class="probe" data-probe="no-email" data-state="idle">
+				<div class="title">
+					<span class="badge">idle</span>omitting the email sends an anonymous
+					identity
+				</div>
+				<div class="what">
+					<code>setIdentity({fields})</code> with no <code>email</code> sends
+					an empty <code>emailAddressHashed</code>.
+				</div>
+				<div class="detail"></div>
+			</div>
+			<div class="probe" data-probe="legacy" data-state="idle">
+				<div class="title">
+					<span class="badge">idle</span>a legacy call carries no fields key
+				</div>
+				<div class="what">
+					<code>setIdentity({email, name})</code> must produce the same body it
+					always did.
+				</div>
+				<div class="detail"></div>
+			</div>
+		</div>
+
+		<h2>Manual submit</h2>
+		<p class="note">
+			The Marketo trial-form mapping by hand: each non-empty input below becomes
+			one <code>{name, value}</code> entry. Leave the email blank to send an
+			anonymous identity.
+		</p>
+		<form class="manual" id="manual">
+			<div>
+				<label for="firstName">firstName</label>
+				<input id="firstName" value="John" />
+			</div>
+			<div>
+				<label for="lastName">lastName</label>
+				<input id="lastName" value="Doe" />
+			</div>
+			<div>
+				<label for="emailAddress">emailAddress</label>
+				<input id="emailAddress" value="john.doe@example.com" />
+			</div>
+			<div>
+				<label for="country">country</label>
+				<input id="country" value="Brazil" />
+			</div>
+			<div>
+				<label for="accountName">accountName (Company)</label>
+				<input id="accountName" value="Acme Inc" />
+			</div>
+			<div class="actions">
+				<button disabled id="send" type="submit">Send identity</button>
+				<span class="hint" id="manualHint"
+					>Sends the email both top level and as a field, the way the
+					integration script has to.</span
+				>
+			</div>
+		</form>
+
+		<h2>/identity requests</h2>
+		<div class="log" id="log"></div>
+
+		<script>
+			// Same shape liferay.com uses: point a <script> at the SDK, then
+			// Analytics.create(config) once it loads. Requests are REAL — they are
+			// queued and flushed to endpointUrl.
+
+			const DEV_CDN_URL = 'https://analytics-js-dev-cdn.liferay.com';
+			const LOCAL_URL = './local/analytics-all-min.js';
+
+			const requestedSDK = new URLSearchParams(location.search).get('sdk');
+
+			const SDK_URL =
+				requestedSDK === 'local'
+					? LOCAL_URL
+					: requestedSDK || DEV_CDN_URL;
+
+			const CONFIG = {
+				channelId: '831904237734003774',
+				dataSourceId: '820802606605225785',
+				endpointUrl: 'https://osbasahpublisher-ac-internal.lfr.cloud',
+				projectId: 'asah59dbaa580b264c578bb15c878dd363f0',
+			};
+
+			// The identity queue flushes on this cadence, so every probe that
+			// asserts "nothing was sent" has to outwait it.
+
+			const FLUSH_INTERVAL = 2000;
+			const WAIT_MS = 3 * FLUSH_INTERVAL;
+
+			const EMAIL = 'harness.identity@example.com';
+
+			Object.keys(localStorage)
+				.filter((key) => key.startsWith('ac_'))
+				.forEach((key) => localStorage.removeItem(key));
+
+			// Capture the outgoing /identity bodies. The SDK sends through fetch,
+			// and the queue drains on its own schedule, so shadowing fetch is the
+			// only way to see a body that polling would miss.
+
+			const requests = [];
+
+			const nativeFetch = window.fetch.bind(window);
+
+			window.fetch = function (url, options) {
+				const href = typeof url === 'string' ? url : url && url.url;
+
+				if (href && href.indexOf('/identity') !== -1) {
+					let body = null;
+
+					try {
+						body = JSON.parse((options && options.body) || 'null');
+					}
+					catch (error) {
+						body = {unparseable: String((options || {}).body)};
+					}
+
+					requests.push({at: new Date(), body});
+
+					renderLog();
+				}
+
+				return nativeFetch(url, options);
+			};
+
+			function renderLog() {
+				const log = document.getElementById('log');
+
+				if (!requests.length) {
+					log.innerHTML =
+						'<div class="empty">No /identity request captured yet.</div>';
+
+					return;
+				}
+
+				log.innerHTML = requests
+					.map((request, index) => {
+						const json = JSON.stringify(request.body, null, 2).replace(
+							/"([^"]+)":/g,
+							'<span class="key">"$1"</span>:'
+						);
+
+						return (
+							'<div class="entry"><span class="when">#' +
+							(index + 1) +
+							' · ' +
+							request.at.toLocaleTimeString() +
+							'</span> <span class="who">POST /identity</span><pre>' +
+							json +
+							'</pre></div>'
+						);
+					})
+					.join('');
+			}
+
+			// Resolves with the requests captured after `since`, or an empty array
+			// once the flush window has passed without any.
+
+			function waitForRequests(since) {
+				return new Promise((resolve) => {
+					const deadline = Date.now() + WAIT_MS;
+
+					const tick = () => {
+						if (requests.length > since) {
+							// Let a second request in the same window land too.
+
+							setTimeout(
+								() => resolve(requests.slice(since)),
+								FLUSH_INTERVAL
+							);
+
+							return;
+						}
+
+						if (Date.now() >= deadline) {
+							resolve([]);
+
+							return;
+						}
+
+						setTimeout(tick, 120);
+					};
+
+					tick();
+				});
+			}
+
+			function setProbe(name, state, detail) {
+				const probe = document.querySelector(
+					'[data-probe="' + name + '"]'
+				);
+
+				probe.dataset.state = state;
+				probe.querySelector('.badge').textContent = state;
+				probe.querySelector('.detail').textContent = detail || '';
+			}
+
+			function fieldNames(body) {
+				return (body.fields || []).map((field) => field.name);
+			}
+
+			function isSorted(names) {
+				return names.every(
+					(name, index) => index === 0 || names[index - 1] <= name
+				);
+			}
+
+			const UNSORTED_FIELDS = [
+				{name: 'lastName', value: 'Doe'},
+				{name: 'accountName', value: 'Acme Inc'},
+				{name: 'firstName', value: 'John'},
+				{name: 'emailAddress', value: EMAIL},
+			];
+
+			async function runProbes() {
+				const runButton = document.getElementById('run');
+
+				runButton.disabled = true;
+				runButton.textContent = 'Running…';
+
+				[
+					'fields-sent',
+					'fields-sorted',
+					'reorder-dedup',
+					'value-change',
+					'no-email',
+					'legacy',
+				].forEach((name) => setProbe(name, 'running', ''));
+
+				// 1 + 2 — one call answers both: are the fields on the wire, and are
+				// they sorted despite being handed over unsorted?
+
+				let since = requests.length;
+
+				window.__ac.setIdentity({
+					email: EMAIL,
+					fields: UNSORTED_FIELDS,
+					name: 'John Doe',
+				});
+
+				let captured = await waitForRequests(since);
+
+				if (!captured.length) {
+					[
+						'fields-sent',
+						'fields-sorted',
+						'reorder-dedup',
+						'value-change',
+						'no-email',
+					].forEach((name) =>
+						setProbe(name, 'fail', 'No /identity request was captured.')
+					);
+
+					runButton.disabled = false;
+					runButton.textContent = 'Run all probes';
+
+					return;
+				}
+
+				const first = captured[0].body;
+				const supported = Object.prototype.hasOwnProperty.call(
+					first,
+					'fields'
+				);
+
+				if (!supported) {
+					setProbe(
+						'fields-sent',
+						'fail',
+						'Body has no "fields" key — this build predates LPD-103257.'
+					);
+
+					['fields-sorted', 'reorder-dedup', 'value-change', 'no-email'].forEach(
+						(name) =>
+							setProbe(name, 'na', 'Not applicable without fields support.')
+					);
+
+					setVerdict(
+						'missing',
+						'<b>This build has no fields support.</b> ' +
+							'setIdentity() dropped the array, so only the legacy probe below is meaningful. ' +
+							'Point ?sdk= at a build that carries LPD-103257.'
+					);
+				}
+				else {
+					setProbe(
+						'fields-sent',
+						'pass',
+						'fields: ' + JSON.stringify(first.fields)
+					);
+
+					const names = fieldNames(first);
+
+					setProbe(
+						'fields-sorted',
+						isSorted(names) ? 'pass' : 'fail',
+						'sent as [' +
+							names.join(', ') +
+							'] · called with [' +
+							UNSORTED_FIELDS.map((field) => field.name).join(', ') +
+							']'
+					);
+
+					setVerdict(
+						'supported',
+						'<b>This build supports fields.</b> ' +
+							'The array reached /identity, so every probe below is meaningful.'
+					);
+
+					// 3 — same data, different order: must be deduplicated.
+
+					since = requests.length;
+
+					window.__ac.setIdentity({
+						email: EMAIL,
+						fields: UNSORTED_FIELDS.slice().reverse(),
+						name: 'John Doe',
+					});
+
+					captured = await waitForRequests(since);
+
+					setProbe(
+						'reorder-dedup',
+						captured.length ? 'fail' : 'pass',
+						captured.length
+							? 'A second request went out: ' +
+									JSON.stringify(fieldNames(captured[0].body))
+							: 'No request in ' + WAIT_MS + 'ms — deduplicated.'
+					);
+
+					// 4 — a changed value must get through.
+
+					since = requests.length;
+
+					window.__ac.setIdentity({
+						email: EMAIL,
+						fields: [
+							{name: 'accountName', value: 'Acme Inc'},
+							{name: 'emailAddress', value: EMAIL},
+							{name: 'firstName', value: 'John'},
+							{name: 'lastName', value: 'Doe the Second'},
+						],
+						name: 'John Doe',
+					});
+
+					captured = await waitForRequests(since);
+
+					setProbe(
+						'value-change',
+						captured.length ? 'pass' : 'fail',
+						captured.length
+							? 'lastName on the wire: ' +
+									JSON.stringify(
+										(captured[0].body.fields || []).find(
+											(field) => field.name === 'lastName'
+										)
+									)
+							: 'Nothing was sent — the value change was swallowed.'
+					);
+
+					// 5 — no email at all.
+
+					since = requests.length;
+
+					window.__ac.setIdentity({
+						fields: [{name: 'emailAddress', value: EMAIL}],
+					});
+
+					captured = await waitForRequests(since);
+
+					if (!captured.length) {
+						setProbe('no-email', 'fail', 'Nothing was sent.');
+					}
+					else {
+						const hashed = captured[0].body.emailAddressHashed;
+
+						setProbe(
+							'no-email',
+							hashed === '' ? 'pass' : 'fail',
+							'emailAddressHashed: ' + JSON.stringify(hashed)
+						);
+					}
+				}
+
+				// 6 — the legacy shape, meaningful on both sides of the release.
+				// Drop the stored identity hash first: on a build without fields
+				// support probe 1 already sent this exact body, so without the reset
+				// the dedup guard would swallow this call and the probe would report a
+				// failure that is really the SDK behaving correctly.
+
+				localStorage.removeItem('ac_client_identity');
+
+				since = requests.length;
+
+				window.__ac.setIdentity({email: EMAIL, name: 'John Doe'});
+
+				captured = await waitForRequests(since);
+
+				if (!captured.length) {
+					setProbe('legacy', 'fail', 'Nothing was sent.');
+				}
+				else {
+					const hasFields = Object.prototype.hasOwnProperty.call(
+						captured[0].body,
+						'fields'
+					);
+
+					setProbe(
+						'legacy',
+						hasFields ? 'fail' : 'pass',
+						hasFields
+							? 'Body carries a fields key: ' +
+									JSON.stringify(captured[0].body.fields)
+							: 'Body keys: ' + Object.keys(captured[0].body).join(', ')
+					);
+				}
+
+				runButton.disabled = false;
+				runButton.textContent = 'Run all probes';
+			}
+
+			function setVerdict(state, html) {
+				const verdict = document.getElementById('verdict');
+
+				verdict.className = 'verdict ' + state;
+				verdict.innerHTML = html;
+			}
+
+			document.getElementById('manual').addEventListener('submit', (event) => {
+				event.preventDefault();
+
+				const fields = [
+					'accountName',
+					'country',
+					'emailAddress',
+					'firstName',
+					'lastName',
+				]
+					.map((name) => ({
+						name,
+						value: document.getElementById(name).value.trim(),
+					}))
+					.filter((field) => field.value);
+
+				const email = document.getElementById('emailAddress').value.trim();
+
+				window.__ac.setIdentity(email ? {email, fields} : {fields});
+
+				document.getElementById('manualHint').textContent =
+					'Sent ' +
+					fields.length +
+					' field(s)' +
+					(email ? '' : ' with no top-level email') +
+					' — watch the log below.';
+			});
+
+			document.getElementById('run').addEventListener('click', runProbes);
+
+			document.getElementById('reset').addEventListener('click', () => {
+				Object.keys(localStorage)
+					.filter((key) => key.startsWith('ac_'))
+					.forEach((key) => localStorage.removeItem(key));
+
+				location.reload();
+			});
+
+			renderLog();
+
+			document.getElementById('env').innerHTML =
+				'<div><span class="k">SDK URL</span><span class="v">' +
+				SDK_URL +
+				'</span></div><div><span class="k">endpointUrl</span><span class="v">' +
+				CONFIG.endpointUrl +
+				'</span></div><div><span class="k">channelId</span><span class="v">' +
+				CONFIG.channelId +
+				'</span></div>';
+
+			const sdk = document.createElement('script');
+
+			sdk.src = SDK_URL;
+
+			sdk.onload = () => {
+				window.__ac = Analytics.create(CONFIG);
+
+				window.__ac.send('pageViewed', 'Page', {
+					externalReferenceCode: 'harness-set-identity-fields',
+				});
+
+				document.getElementById('run').disabled = false;
+				document.getElementById('send').disabled = false;
+
+				setVerdict(
+					'pending',
+					'SDK loaded (version ' +
+						(window.__ac.version || 'unknown') +
+						'). Click <b>Run all probes</b> to find out whether it carries the fields array.'
+				);
+
+				window.__acReady = true;
+			};
+
+			sdk.onerror = () => {
+				setVerdict('blocked', '<b>SDK failed to load</b> — ' + SDK_URL);
+			};
+
+			document.head.appendChild(sdk);
+		</script>
+	</body>
+</html>

@@ -148,6 +148,18 @@
 			</p>
 		</a>
 
+		<a class="card" href="set-identity-fields.html">
+			<h2>setIdentity fields <span class="tag">LPD-103257</span></h2>
+			<p>
+				The optional <code>fields</code> array on
+				<code>setIdentity()</code>. Shows the exact <code>/identity</code>
+				request body on the wire, and probes that the fields are normalized by
+				name, that reordering them is deduplicated, that a changed value still
+				gets through, and that a legacy call is untouched. Takes
+				<code>?sdk=local</code> to drive a locally built bundle.
+			</p>
+		</a>
+
 		<div class="config">
 			<h3>Configuration (Analytics Cloud dev)</h3>
 			<div><span class="k">SDK URL</span>&nbsp;&nbsp;<span class="v">https://analytics-js-dev-cdn.liferay.com</span></div>

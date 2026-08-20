@@ -13,15 +13,17 @@ live SDK, drives it, and shows which analytics events fire.
 | `all-events.html` | Fires and verifies **all 29 events** (click "Run all"). |
 | `events-on-load.html` | View/impression events that fire on page load. |
 | `reveal-scenarios.html` | Every plugin's view/impression asset hidden by an ancestor, revealed via a toggle. |
+| `set-identity-fields.html` | The optional `fields` array on `setIdentity()` and the identity dedup that hangs off it (LPD-103257). |
 | `page-unloaded.html` | Which lifecycle event reports `pageUnloaded`, plus the back/forward cache cases (LPD-100223). |
 | `page-unloaded-away.html` | Navigation target for the round trip in `page-unloaded.html`; carries no SDK on purpose. |
 | `style.css` | Shared styles for `events-on-load.html`. |
 | `README.md` | Human-facing overview. |
 
 There is **no vendored SDK bundle** in this repo. Every page loads the SDK from
-the dev CDN at runtime. `page-unloaded.html` additionally accepts
-`?sdk=<url>`, with `?sdk=local` resolving to `./local/analytics-all-min.js` —
-a gitignored drop point for a bundle built out of the module.
+the dev CDN at runtime. `page-unloaded.html` and `set-identity-fields.html`
+additionally accept `?sdk=<url>`, with `?sdk=local` resolving to
+`./local/analytics-all-min.js` — a gitignored drop point for a bundle built out
+of the module.
 
 ## How the SDK is embedded
 
@@ -135,6 +137,42 @@ Two details worth keeping if the page is edited:
   produce a real back/forward cache restore, and labels which one it used. Many
   browsers — automation ones especially — will not restore, and without the
   fallback the probe would never produce a signal.
+
+## setIdentity fields and the dev CDN
+
+LPD-103257 adds an optional generic `fields: [{name, value}]` array to
+`setIdentity()`, carried in the `/identity` payload alongside
+`emailAddressHashed`.
+
+`set-identity-fields.html` shadows `window.fetch` rather than polling
+`getEvents()` — identity requests are not events, and the body is the thing
+being asserted on. It detects support instead of assuming it (does the captured
+body have a `fields` key?), so it is correct on both sides of the release: today
+it reports "build has no fields support" against the dev CDN and goes green
+against a local build, and it flips on its own once the fix ships.
+
+Three SDK behaviors drive the probes, and all three are easy to get wrong when
+editing the page:
+
+- `fields` live **inside** the object that `_getIdentityHash` hashes, so they
+  take part in the dedup guard in `_sendIdentity`. Probe 4 exists because
+  leaving them out would silently swallow a resubmit.
+- `_getNormalizedFields` sorts by `name` before hashing, since the SDK's
+  `hash()` sorts object keys but preserves array order. Probe 3 asserts that
+  reordering is a no-op on the wire.
+- `email` is optional and, when omitted, `emailAddressHashed` goes out as `''`.
+  Probe 5 pins that down, because it is the case the backend has to treat as
+  anonymous.
+
+The legacy probe clears `ac_client_identity` before it runs. On a build without
+fields support the first probe already put that exact body on the wire, so the
+dedup guard would swallow the legacy call and the probe would report a failure
+that is really the SDK working as designed.
+
+Probes that assert **nothing** was sent have to outwait the identity queue,
+which flushes every 2s — hence `WAIT_MS = 3 * FLUSH_INTERVAL` and a full run
+taking about half a minute. Shortening that wait turns those probes into false
+passes.
 
 ## Conventions for editing the harness pages
 
