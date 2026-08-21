@@ -338,7 +338,13 @@
 			// Analytics.create(config) once it loads. Events are REAL — they are
 			// queued and flushed to endpointUrl, nothing is stubbed.
 
-			const SDK_URL = 'https://analytics-js-dev-cdn.liferay.com';
+			const DEV_CDN_URL = 'https://analytics-js-dev-cdn.liferay.com';
+			const LOCAL_URL = './local/analytics-all-min.js';
+
+			const requestedSDK = new URLSearchParams(location.search).get('sdk');
+
+			const SDK_URL =
+				requestedSDK === 'local' ? LOCAL_URL : requestedSDK || DEV_CDN_URL;
 			const CHANNEL_ID = '831904237734003774';
 			const CONFIG = {
 				channelId: CHANNEL_ID,

@@ -40,9 +40,8 @@ Every page loads the SDK from `SDK_URL` — the currently deployed dev build.
 
 ### Driving a locally built SDK
 
-`page-unloaded.html`, `set-identity-fields.html` and `flush.html` accept
-`?sdk=<url>` so a build straight out of the module can be driven before it
-reaches the CDN. `?sdk=local` resolves to
+Every page accepts `?sdk=<url>` so a build straight out of the module can be
+driven before it reaches the CDN. `?sdk=local` resolves to
 `./local/analytics-all-min.js`, which is gitignored:
 
 ```bash

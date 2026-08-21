@@ -367,7 +367,17 @@
 					(a.src = u),
 					(a.onload = c),
 					m.parentNode.insertBefore(a, m);
-			})('https://analytics-js-dev-cdn.liferay.com', function () {
+			})(
+				(function () {
+					const requested = new URLSearchParams(location.search).get(
+						'sdk'
+					);
+
+					return requested === 'local'
+						? './local/analytics-all-min.js'
+						: requested || 'https://analytics-js-dev-cdn.liferay.com';
+				})(),
+				function () {
 				window.__ac = Analytics.create({
 					channelId: '831904237734003774',
 					dataSourceId: '820802606605225785',

@@ -22,10 +22,10 @@ live SDK, drives it, and shows which analytics events fire.
 | `README.md` | Human-facing overview. |
 
 There is **no vendored SDK bundle** in this repo. Every page loads the SDK from
-the dev CDN at runtime. `page-unloaded.html`, `set-identity-fields.html` and
-`flush.html` additionally accept `?sdk=<url>`, with `?sdk=local` resolving to
+the dev CDN at runtime. **Every** page accepts `?sdk=<url>`, with `?sdk=local` resolving to
 `./local/analytics-all-min.js` — a gitignored drop point for a bundle built out
-of the module.
+of the module. Keep it that way: a page that hardcodes the CDN cannot be used to
+regression-test an unreleased build, which is most of what these pages are for.
 
 ## How the SDK is embedded
 
