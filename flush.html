@@ -320,7 +320,8 @@
 				</div>
 				<div class="what">
 					With the endpoint hanging, <code>flush()</code> still settles — via
-					the existing <code>REQUEST_TIMEOUT</code>, around 5s.
+					the existing <code>REQUEST_TIMEOUT</code>, around 5s. Isolates a
+					single queue first, because the bound is per queue.
 				</div>
 				<div class="detail"></div>
 			</div>
@@ -473,6 +474,34 @@
 				document.getElementById('ceiling').disabled = busy;
 			}
 
+			// The SDK's four queues. Probes that claim something about "one queue"
+			// or "nothing queued" have to reset these first: the visibility plugin
+			// fires tabBlurred on any tab switch, which drops an event into the
+			// events queue mid-run. Since the queues are walked sequentially, that
+			// stray event turns a one-queue measurement into a two-queue one.
+
+			const QUEUE_KEYS = [
+				'ac_client_batch',
+				'ac_message_queue',
+				'ac_message_queue_account',
+				'ac_message_queue_identity',
+			];
+
+			function resetQueues() {
+				QUEUE_KEYS.forEach((key) => localStorage.setItem(key, '[]'));
+			}
+
+			function occupiedQueues() {
+				return QUEUE_KEYS.filter((key) => {
+					try {
+						return JSON.parse(localStorage.getItem(key) || '[]').length;
+					}
+					catch (error) {
+						return false;
+					}
+				});
+			}
+
 			// Queues one identity message. A fresh email each time, so the identity
 			// hash always changes and the message is never deduplicated away.
 
@@ -583,7 +612,10 @@
 						'ms, with the request already captured'
 				);
 
-				// 4 — an empty queue must be cheap.
+				// 4 — an empty queue must be cheap. Reset first, or a stray event
+				// makes this measure a real send.
+
+				resetQueues();
 
 				const emptyElapsed = await timed(window.__ac.flush());
 
@@ -628,11 +660,20 @@
 						: 'a Promise settled while the request was still stalled'
 				);
 
-				// 6 — the stalled endpoint settles through REQUEST_TIMEOUT.
+				// 6 — the stalled endpoint settles through REQUEST_TIMEOUT. The
+				// bound is per queue, so this has to isolate exactly one: probe 5
+				// leaves a stalled item behind, and a tab switch during the run
+				// drops a tabBlurred event into the events queue. Either one would
+				// make this measure a multiple of REQUEST_TIMEOUT and report a
+				// failure that is really the SDK behaving as designed.
+
+				resetQueues();
 
 				before = requests.length;
 
 				await queueIdentity();
+
+				const stalledQueues = occupiedQueues();
 
 				stalling = true;
 
@@ -646,12 +687,15 @@
 
 				setProbe(
 					'timeout',
-					withinBound ? 'pass' : 'fail',
+					withinBound && stalledQueues.length === 1 ? 'pass' : 'fail',
 					'settled in ' +
 						stalledElapsed +
 						'ms against a hanging endpoint (REQUEST_TIMEOUT is ' +
 						REQUEST_TIMEOUT +
-						'ms)'
+						'ms), with ' +
+						stalledQueues.length +
+						' queue(s) holding items: ' +
+						(stalledQueues.join(', ') || 'none')
 				);
 
 				setBusy(false);

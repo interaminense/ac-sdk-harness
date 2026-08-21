@@ -202,6 +202,18 @@ Three things about the page are load-bearing:
   would produce the same identity hash, the SDK would deduplicate it, and the
   probe would measure an empty flush while looking like it measured a real one.
 
+**Probes that claim "one queue" or "nothing queued" must call `resetQueues()`
+first.** This is not tidiness — it is the difference between measuring the SDK
+and measuring the tester. `visibility.ts` fires `tabBlurred` on any tab switch,
+which lands an event in the events queue; probe 5 also leaves its stalled item
+behind. Either one gives the timeout probe a second queue to walk, and since the
+queues are sequential it then settles at ~2 × `REQUEST_TIMEOUT` and reports a
+failure that is really the SDK working as designed. This was a real bug in the
+page: it passed in automation, where the tab never loses focus, and failed for a
+human who switched tabs mid-run. The timeout probe now resets first, asserts on
+the queue count as well as the elapsed time, and names the occupied queues in
+its detail so the next anomaly diagnoses itself.
+
 **The sequential-queue ceiling.** `QueueFlushService` reduces over its four
 queues with `previousPromise.then(...)`, so `REQUEST_TIMEOUT` bounds each queue,
 not the flush. The **Measure the ceiling** button demonstrates it: with items in
