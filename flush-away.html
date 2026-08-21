@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta content="width=device-width, initial-scale=1.0" name="viewport" />
+
+		<title>ac-sdk-harness — leaving the flush harness</title>
+
+		<style>
+			body {
+				background: #f8fafc;
+				color: #475569;
+				font-family: system-ui, sans-serif;
+				line-height: 1.5;
+				margin: 0 auto;
+				max-width: 620px;
+				padding: 80px 24px;
+				text-align: center;
+			}
+			code {
+				background: #e2e8f0;
+				border-radius: 4px;
+				font-size: 0.9em;
+				padding: 1px 5px;
+			}
+			a {
+				color: #1d4ed8;
+			}
+		</style>
+	</head>
+
+	<body>
+		<h1>Away from the harness</h1>
+		<p>
+			Standing in for the page a form submit redirects to. Deliberately no
+			SDK here — the point is that the harness page is gone, so anything it
+			had queued is now sitting in <code>localStorage</code> waiting for a
+			page that does load the SDK.
+		</p>
+		<p>
+			<a id="back" href="flush.html">Back to the harness</a> if this does not
+			return on its own.
+		</p>
+
+		<script>
+			// Return with location.href rather than history.back(): going back can
+			// be served from the back/forward cache, which restores the harness
+			// instead of loading it. The whole point of the no-flush scenario is a
+			// genuinely fresh page load reading the queue back from localStorage.
+
+			const target =
+				new URLSearchParams(location.search).get('to') || 'flush.html';
+
+			document.getElementById('back').href = target;
+
+			setTimeout(() => {
+				location.href = target;
+			}, 700);
+		</script>
+	</body>
+</html>

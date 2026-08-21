@@ -16,6 +16,7 @@ Interactive, in-browser test harness for Liferay's Analytics Cloud client SDK
 | [`events-on-load.html`](events-on-load.html) | The view/impression events that fire as assets enter the viewport on load, across all six application types. |
 | [`reveal-scenarios.html`](reveal-scenarios.html) | Every plugin's **view and impression** assets, each hidden by an **ancestor** (`opacity:0` / `visibility:hidden`, the mega-menu case) and revealed via a toggle. |
 | [`flush.html`](flush.html) | `Analytics.flush()` (LPD-103258). Sends the queue on demand and times how long the Promise takes to settle, including against a deliberately stalled endpoint. |
+| [`flush-away.html`](flush-away.html) | Navigation target for the `flush.html` round trips; carries no SDK on purpose. |
 | [`set-identity-fields.html`](set-identity-fields.html) | The optional `fields` array on `setIdentity()` (LPD-103257). Shows the exact `/identity` request body on the wire and probes the normalization and dedup rules that hang off it. |
 | [`page-unloaded.html`](page-unloaded.html) | Which lifecycle event the build uses to report `pageUnloaded` (`unload` or `pagehide`), plus the back/forward cache cases the move to `pagehide` opens up. |
 
@@ -103,6 +104,19 @@ Against a stalled endpoint a single queue settles at ~5s, but the
 **Measure the ceiling** button — which puts items in more than one queue first —
 reports multiples of that. Empty queues cost nothing, so the realistic
 trial-form path (one identity message) is unaffected.
+
+### The two integration modes
+
+`flush.html` also drives the two ways the integration script can be wired,
+each through a real navigation to a page that carries no SDK:
+
+- **Leave without flushing** — queue the identity and go. It survives in
+  `localStorage` and the SDK sends it on the next page load, measured at one
+  flush interval after the return. Valid only when the visitor stays on the
+  same origin and the destination loads the SDK.
+- **Flush before leaving** — wait on `flush()` before navigating, so the
+  request is gone and the queue is empty on departure. This is the one to use
+  when the submit sends the visitor off the origin.
 
 ## The unload deprecation and the dev CDN
 

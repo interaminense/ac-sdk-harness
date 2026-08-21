@@ -13,6 +13,7 @@ live SDK, drives it, and shows which analytics events fire.
 | `all-events.html` | Fires and verifies **all 29 events** (click "Run all"). |
 | `events-on-load.html` | View/impression events that fire on page load. |
 | `reveal-scenarios.html` | Every plugin's view/impression asset hidden by an ancestor, revealed via a toggle. |
+| `flush-away.html` | Navigation target for `flush.html`'s round trips; carries no SDK on purpose. |
 | `flush.html` | `Analytics.flush()` and the request-timeout behavior around it (LPD-103258). |
 | `set-identity-fields.html` | The optional `fields` array on `setIdentity()` and the identity dedup that hangs off it (LPD-103257). |
 | `page-unloaded.html` | Which lifecycle event reports `pageUnloaded`, plus the back/forward cache cases (LPD-100223). |
@@ -213,6 +214,34 @@ page: it passed in automation, where the tab never loses focus, and failed for a
 human who switched tabs mid-run. The timeout probe now resets first, asserts on
 the queue count as well as the elapsed time, and names the occupied queues in
 its detail so the next anomaly diagnoses itself.
+
+**The two integration modes.** The **Integration modes** section drives the two
+ways the LPD-103259 script can be wired, each through a real navigation to
+`flush-away.html` (no SDK there on purpose):
+
+- *Leave without flushing* queues an identity and navigates immediately. The
+  claim under test is that the queue survives in `localStorage` and the SDK
+  sends it on its own once a page loads again. Measured: sent ~2.2s after the
+  return, which is one flush interval.
+- *Flush before leaving* waits on `flush()` first, so the request is already
+  gone and the queue is empty on departure — the option to use when the submit
+  sends the visitor off the origin, where no later page load would drain it.
+
+Three things make that section work, and each breaks it silently if changed:
+
+- A `harness_flush_trip` marker in `localStorage` is set before leaving. Its
+  presence suppresses the `ac_*` wipe on load — the queue is the thing under
+  test — and switches `flushInterval` from 600000 to 2000, because option 1 is
+  precisely the claim that the SDK's own loop sends the message.
+- The return leg goes through `location.href`, not `history.back()`. Going back
+  can be served from the back/forward cache, which restores the page instead of
+  loading it, and a fresh load is the whole point.
+- `tripAwayURL()` carries the current query string into the return URL. Without
+  it a run driving a local build with `?sdk=` comes back on the CDN and reports
+  a failure that is really a lost parameter.
+
+Returning from a trip disables the probes button: the live interval would make
+the "nothing sent while queued" probe meaningless. Reset reloads clean.
 
 **The sequential-queue ceiling.** `QueueFlushService` reduces over its four
 queues with `previousPromise.then(...)`, so `REQUEST_TIMEOUT` bounds each queue,

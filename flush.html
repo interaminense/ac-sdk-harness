@@ -347,6 +347,38 @@
 			<div class="big" id="simResult">—</div>
 		</div>
 
+		<h2>Integration modes</h2>
+		<p class="note">
+			The two ways the integration script can be wired, each driven through a
+			<strong>real navigation</strong> to a page that carries no SDK — standing
+			in for wherever the form submit sends the visitor. The harness comes
+			back on its own and reports what happened to the queued identity.
+		</p>
+		<div class="panel">
+			<div class="row">
+				<button class="ghost" disabled id="modeNoFlush">
+					1 — leave without flushing
+				</button>
+				<button class="ghost" disabled id="modeFlush">
+					2 — flush before leaving
+				</button>
+			</div>
+			<div class="probe" data-probe="trip" data-state="idle">
+				<div class="title">
+					<span class="badge">idle</span><span id="tripTitle"
+						>No round trip run yet</span
+					>
+				</div>
+				<div class="what" id="tripWhat">
+					Option 1 queues and leaves immediately; the identity should survive
+					in <code>localStorage</code> and go out on the next load. Option 2
+					waits for <code>flush()</code> first, so it should already be gone
+					before the navigation.
+				</div>
+				<div class="detail" id="tripDetail"></div>
+			</div>
+		</div>
+
 		<h2>Sequential-queue ceiling</h2>
 		<div class="warn">
 			<code>QueueFlushService</code> processes its four queues
@@ -376,8 +408,22 @@
 			const SDK_URL =
 				requestedSDK === 'local' ? LOCAL_URL : requestedSDK || DEV_CDN_URL;
 
-			const FLUSH_INTERVAL = 600000;
+			const IDLE_FLUSH_INTERVAL = 600000;
+			const LIVE_FLUSH_INTERVAL = 2000;
 			const REQUEST_TIMEOUT = 5000;
+			const TRIP_KEY = 'harness_flush_trip';
+
+			// Set before navigating away and read on the way back. Its presence
+			// changes two things: the ac_* keys must survive (the queue is the
+			// thing under test), and the flush loop has to run at a normal
+			// interval, because option 1 is precisely the claim that the SDK
+			// sends the message on its own once a page loads.
+
+			const trip = JSON.parse(localStorage.getItem(TRIP_KEY) || 'null');
+
+			const FLUSH_INTERVAL = trip
+				? LIVE_FLUSH_INTERVAL
+				: IDLE_FLUSH_INTERVAL;
 
 			const CONFIG = {
 				channelId: '831904237734003774',
@@ -387,9 +433,11 @@
 				projectId: 'asah59dbaa580b264c578bb15c878dd363f0',
 			};
 
-			Object.keys(localStorage)
-				.filter((key) => key.startsWith('ac_'))
-				.forEach((key) => localStorage.removeItem(key));
+			if (!trip) {
+				Object.keys(localStorage)
+					.filter((key) => key.startsWith('ac_'))
+					.forEach((key) => localStorage.removeItem(key));
+			}
 
 			// Shadowing fetch does double duty here: it logs what actually left the
 			// page, and `stalling` lets a probe hang the endpoint so the request
@@ -756,6 +804,153 @@
 				setBusy(false);
 			}
 
+			// The return leg has to come back with the same query string, or a run
+			// driving a local build via ?sdk= would silently come back on the CDN.
+
+			function tripAwayURL() {
+				return (
+					'flush-away.html?to=' +
+					encodeURIComponent('flush.html' + location.search)
+				);
+			}
+
+			function setTrip(state, title, detail) {
+				const probe = document.querySelector('[data-probe="trip"]');
+
+				probe.dataset.state = state;
+				probe.querySelector('.badge').textContent = state;
+				document.getElementById('tripTitle').textContent = title;
+				document.getElementById('tripDetail').textContent = detail || '';
+			}
+
+			function queueLength(key) {
+				try {
+					return JSON.parse(localStorage.getItem(key) || '[]').length;
+				}
+				catch (error) {
+					return 0;
+				}
+			}
+
+			// Option 1: queue and go. Nothing is flushed, so the message can only
+			// arrive if the queue survives the navigation.
+
+			async function leaveWithoutFlushing() {
+				resetQueues();
+
+				await queueIdentity();
+
+				localStorage.setItem(
+					TRIP_KEY,
+					JSON.stringify({
+						mode: 'no-flush',
+						queuedItems: queueLength('ac_message_queue_identity'),
+						requestsBeforeLeaving: requests.length,
+					})
+				);
+
+				location.href = tripAwayURL();
+			}
+
+			// Option 2: what the integration script does when the submit takes the
+			// visitor off the origin — hold the navigation until the flush settles.
+
+			async function flushBeforeLeaving() {
+				resetQueues();
+
+				await queueIdentity();
+
+				const before = requests.length;
+
+				const elapsed = await timed(window.__ac.flush());
+
+				localStorage.setItem(
+					TRIP_KEY,
+					JSON.stringify({
+						elapsed,
+						mode: 'flush',
+						queuedItems: queueLength('ac_message_queue_identity'),
+						requestsBeforeLeaving: requests.length - before,
+					})
+				);
+
+				location.href = tripAwayURL();
+			}
+
+			// Runs on the way back, against a freshly loaded page.
+
+			async function reportTrip() {
+				localStorage.removeItem(TRIP_KEY);
+
+				document.getElementById('run').disabled = true;
+				document.getElementById('run').textContent =
+					'Reset to run the probes';
+
+				if (trip.mode === 'flush') {
+					const sent = trip.requestsBeforeLeaving > 0;
+					const drained = trip.queuedItems === 0;
+
+					setTrip(
+						sent && drained ? 'pass' : 'fail',
+						'Option 2 — flushed before leaving',
+						'flush() settled in ' +
+							trip.elapsed +
+							'ms and ' +
+							trip.requestsBeforeLeaving +
+							' request(s) left before the navigation; the identity queue ' +
+							'held ' +
+							trip.queuedItems +
+							' item(s) on departure. Nothing depended on this page ' +
+							'being loaded again, so this is the option to use when the ' +
+							'submit sends the visitor off the origin.'
+					);
+
+					return;
+				}
+
+				const survived = queueLength('ac_message_queue_identity');
+
+				setTrip(
+					'running',
+					'Option 1 — left without flushing',
+					'Queue survived the navigation with ' +
+						survived +
+						' item(s). Waiting for the SDK to send it on its own…'
+				);
+
+				const started = performance.now();
+
+				while (performance.now() - started < 12000) {
+					if (requests.length) {
+						break;
+					}
+
+					await new Promise((resolve) => setTimeout(resolve, 200));
+				}
+
+				const elapsed = Math.round(performance.now() - started);
+				const sent = requests.length > 0;
+
+				setTrip(
+					survived && sent ? 'pass' : 'fail',
+					'Option 1 — left without flushing',
+					'Nothing was sent before leaving. The queue survived the ' +
+						'navigation with ' +
+						survived +
+						' item(s), and the SDK sent it ' +
+						(sent ? elapsed + 'ms after this page loaded' : 'never') +
+						' — on its own flush loop, with no flush() call. This only ' +
+						'works because the return is the same origin and loads the SDK.'
+				);
+			}
+
+			document
+				.getElementById('modeNoFlush')
+				.addEventListener('click', leaveWithoutFlushing);
+			document
+				.getElementById('modeFlush')
+				.addEventListener('click', flushBeforeLeaving);
+
 			document.getElementById('run').addEventListener('click', runProbes);
 			document.getElementById('simulate').addEventListener('click', simulate);
 			document
@@ -763,6 +958,8 @@
 				.addEventListener('click', measureCeiling);
 
 			document.getElementById('reset').addEventListener('click', () => {
+				localStorage.removeItem(TRIP_KEY);
+
 				Object.keys(localStorage)
 					.filter((key) => key.startsWith('ac_'))
 					.forEach((key) => localStorage.removeItem(key));
@@ -777,7 +974,11 @@
 				SDK_URL +
 				'</span></div><div><span class="k">flushInterval</span><span class="v">' +
 				FLUSH_INTERVAL +
-				'ms (the loop never fires)</span></div><div><span class="k">endpointUrl</span><span class="v">' +
+				'ms' +
+				(trip
+					? ' (live — returning from a round trip)'
+					: ' (the loop never fires)') +
+				'</span></div><div><span class="k">endpointUrl</span><span class="v">' +
 				CONFIG.endpointUrl +
 				'</span></div>';
 
@@ -791,6 +992,12 @@
 				document.getElementById('run').disabled = false;
 				document.getElementById('simulate').disabled = false;
 				document.getElementById('ceiling').disabled = false;
+				document.getElementById('modeNoFlush').disabled = false;
+				document.getElementById('modeFlush').disabled = false;
+
+				if (trip) {
+					reportTrip();
+				}
 
 				setVerdict(
 					'pending',
