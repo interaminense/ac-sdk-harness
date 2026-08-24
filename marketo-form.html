@@ -374,8 +374,9 @@
 				anything still queued would have a later chance to go out.
 				<strong>Redirects off the site</strong> leaves for
 				<code>liferay.com</code> — a different origin, where the queue can
-				never be drained, so the request has to have left already. Come back
-				with the browser's Back button and the report appears.
+				never be drained, so the request has to have left already. It runs
+				in an embedded copy of this page, so the departure is real but you
+				stay here and see the result straight away.
 				<strong>Anonymous</strong> starts with no identity at all;
 				<strong>Known</strong> signs a visitor in first, then submits the form
 				under a different address.
@@ -394,6 +395,14 @@
 			const SCRIPT_PATH = './marketo-integration.js';
 
 			const params = new URLSearchParams(location.search);
+
+			// In frame mode this page is embedded by itself to run one scenario.
+			// The embedded copy is the browsing context that navigates away, so
+			// the outer one survives and can show the result immediately — no
+			// Back button, and no relying on the browser reloading rather than
+			// restoring from the back/forward cache.
+
+			const FRAME_MODE = params.get('frame') === '1';
 
 			const requestedSDK = params.get('sdk');
 			const requestedScript = params.get('script');
@@ -644,7 +653,8 @@
 					ordered ? 'pass' : 'fail',
 					trip.requestAt
 						? bodies.length +
-							' identity request(s) captured; the first left ' +
+							' request(s) captured (event batches included); the ' +
+							'first left ' +
 							(trip.departedAt - trip.requestAt) +
 							'ms before the page did'
 						: 'no request was captured before the navigation'
@@ -822,10 +832,72 @@
 				updateTrip({returned: submitForm(values, followUpUrl)});
 			}
 
+			// Everything except the off-site run navigates this page and comes
+			// back on its own. The off-site one cannot come back — that is the
+			// point of it — so it runs in an embedded copy instead.
+
+			function runOffSite() {
+				localStorage.removeItem(TRIP_KEY);
+
+				setVerdict(
+					'pending',
+					'<b>Running the off-site scenario…</b> an embedded copy of this ' +
+						'page is submitting the form and leaving for another origin.'
+				);
+
+				const frame = document.createElement('iframe');
+
+				frame.height = '0';
+				frame.src =
+					'marketo-form.html?frame=1&scenario=off-site' +
+					(requestedSDK ? '&sdk=' + encodeURIComponent(requestedSDK) : '') +
+					(requestedScript
+						? '&script=' + encodeURIComponent(requestedScript)
+						: '');
+				frame.style.border = '0';
+				frame.width = '0';
+
+				document.body.appendChild(frame);
+
+				const deadline = Date.now() + 20000;
+
+				const poll = () => {
+					const record = JSON.parse(
+						localStorage.getItem(TRIP_KEY) || 'null'
+					);
+
+					// departedAt is written by the embedded copy's pagehide, so
+					// its presence means the navigation actually happened.
+
+					if (record && record.departedAt) {
+						frame.remove();
+
+						location.href = 'marketo-form.html' + location.search;
+
+						return;
+					}
+
+					if (Date.now() >= deadline) {
+						frame.remove();
+
+						setVerdict(
+							'blocked',
+							'<b>The off-site run did not finish.</b> The embedded copy ' +
+								'never navigated away.'
+						);
+
+						return;
+					}
+
+					setTimeout(poll, 200);
+				};
+
+				poll();
+			}
+
 			[
 				['anonymous', 'anonymous'],
 				['known', 'known'],
-				['offSite', 'off-site'],
 				['sameSite', 'same-site'],
 			].forEach(function (pair) {
 				document
@@ -834,6 +906,10 @@
 						runScenario(pair[1]);
 					});
 			});
+
+			document
+				.getElementById('offSite')
+				.addEventListener('click', runOffSite);
 
 			renderLog(null);
 
@@ -871,6 +947,12 @@
 					['anonymous', 'known', 'offSite', 'sameSite'].forEach((id) => {
 						document.getElementById(id).disabled = false;
 					});
+
+					if (FRAME_MODE) {
+						runScenario(params.get('scenario') || 'off-site');
+
+						return;
+					}
 
 					if (trip) {
 						reportTrip();

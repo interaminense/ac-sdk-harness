@@ -291,6 +291,13 @@ identified, or signed in first under another address). The known-visitor one is
 the interesting one: it asserts the `userId` **rotates**, which is what keeps
 two different people from being merged onto one Individual.
 
+The off-site scenario runs in an **embedded copy of the page** (`?frame=1`).
+The embedded copy is the browsing context that leaves for another origin, so the
+outer one survives and shows the result immediately. Do not "simplify" this back
+into a top-level navigation: the visitor would have to press Back, and a browser
+that restores the page from the back/forward cache never re-runs the script, so
+the report silently never appears. That is exactly how it was reported broken.
+
 Each scenario clears the four queue keys before submitting. `create()` queues an
 anonymous identity of its own at load, and the known-visitor setup queues
 another; without the reset the flush sends them alongside the form's and the
