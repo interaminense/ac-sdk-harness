@@ -284,6 +284,19 @@ report *when* the redirect would have happened relative to the request. That
 ordering is the point of the whole script, so it is asserted on directly rather
 than inferred from a screenshot.
 
+**The script passes no top-level `email`.** Everything, the address included,
+travels through `fields`. Two consequences are asserted on rather than left
+implicit, because both are easy to mistake for bugs:
+
+- `emailAddressHashed` goes out as `""`. `setIdentity` derives it from the
+  top-level `email` argument (`identity.email ? hash(...) : ''`), so with no
+  argument there is nothing to hash. The backend has to anchor the Individual on
+  `fields.emailAddress` instead.
+- The `userId` **never rotates** on submit. `_getUserId` only rotates when
+  `emailAddressHashed` changes, and it is now always empty — so a visitor
+  identified earlier under another address keeps the same `userId` as the form
+  submitter. Measured: it rotated before this change, and does not now.
+
 **The four scenarios.** Two of them vary where the submit sends the visitor
 (same origin, or off to `liferay.com` — a genuinely different origin where the
 queue can never be drained), and two vary who the visitor already is (never

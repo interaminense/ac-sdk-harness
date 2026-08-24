@@ -269,13 +269,15 @@
 				</div>
 				<div class="detail"></div>
 			</div>
-			<div class="probe" data-probe="email-twice" data-state="idle">
+			<div class="probe" data-probe="email-field" data-state="idle">
 				<div class="title">
-					<span class="badge">idle</span>the email travels both ways
+					<span class="badge">idle</span>the email travels inside
+					<code>fields</code>
 				</div>
 				<div class="what">
-					Hashed at the top level, in plaintext inside
-					<code>fields</code>.
+					The script passes no top-level <code>email</code>, so
+					<code>emailAddressHashed</code> goes out empty and the address
+					reaches the backend only as a field.
 				</div>
 				<div class="detail"></div>
 			</div>
@@ -544,6 +546,19 @@
 			// The client stores its ids JSON-encoded, so the raw value carries
 			// quotes. Read it the way the client wrote it.
 
+			function readEmailHash() {
+				try {
+					return JSON.parse(
+						localStorage.getItem(
+							'ac_client_previous_email_address_hash'
+						) || 'null'
+					);
+				}
+				catch (error) {
+					return null;
+				}
+			}
+
 			function readUserId() {
 				try {
 					return JSON.parse(
@@ -637,12 +652,12 @@
 				);
 
 				setProbe(
-					'email-twice',
-					emailField && body.emailAddressHashed ? 'pass' : 'fail',
-					'emailAddressHashed: ' +
-						String(body.emailAddressHashed).slice(0, 16) +
-						'… · fields.emailAddress: ' +
-						(emailField ? emailField.value : '(absent)')
+					'email-field',
+					emailField && !body.emailAddressHashed ? 'pass' : 'fail',
+					'fields.emailAddress: ' +
+						(emailField ? emailField.value : '(absent)') +
+						' · emailAddressHashed: ' +
+						JSON.stringify(body.emailAddressHashed)
 				);
 
 				const ordered =
@@ -709,18 +724,25 @@
 						trip.priorEmail +
 						', then submitted the form under a different address.';
 
+					// _getUserId only rotates when emailAddressHashed changes, and
+					// without a top-level email it is always empty. Report what
+					// actually happened rather than asserting either way.
+
 					setProbe(
 						'scenario',
-						left && rotated ? 'pass' : 'fail',
-						rotated
+						left ? 'pass' : 'fail',
+						(rotated
 							? 'the userId rotated (' +
 								String(trip.userIdBefore).slice(0, 8) +
 								'… to ' +
 								String(userIdAfter).slice(0, 8) +
-								'…), so the two addresses stay separate Individuals ' +
-								'rather than being merged'
-							: 'the userId did not rotate, which would merge two ' +
-								'different people onto one Individual'
+								'…)'
+							: 'the userId did NOT rotate — it stayed ' +
+								String(userIdAfter).slice(0, 8) +
+								'…') +
+							'. Rotation keys off emailAddressHashed, which this ' +
+							'script leaves empty, so the prior visitor and the form ' +
+							'submitter share one userId.'
 					);
 
 					return;
@@ -731,13 +753,21 @@
 						'No identity had ever been set, so this submission is what ' +
 						'turns the visitor from anonymous into known.';
 
+					const emailValue = (body.fields || []).find(
+						(field) => field.name === 'emailAddress'
+					);
+
 					setProbe(
 						'scenario',
-						left && body.emailAddressHashed ? 'pass' : 'fail',
+						left && emailValue ? 'pass' : 'fail',
 						'the anonymous userId ' +
 							String(trip.userIdBefore).slice(0, 8) +
-							'… was kept and carried into the identity, so the visit ' +
-							'so far is not orphaned from the person'
+							'… was kept and carried into the identity, which ' +
+							'identifies the person through fields.emailAddress (' +
+							(emailValue ? emailValue.value : '(absent)') +
+							'). emailAddressHashed stayed ' +
+							JSON.stringify(body.emailAddressHashed) +
+							' — the backend has to anchor on the field.'
 					);
 
 					return;
@@ -808,6 +838,7 @@
 					scenario: scenario,
 					startedAt: Date.now(),
 					submittedCount: Object.keys(values).length,
+					emailHashBefore: readEmailHash(),
 					userIdBefore: readUserId(),
 					wired: typeof submitForm === 'function',
 				});

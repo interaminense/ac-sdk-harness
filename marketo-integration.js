@@ -69,15 +69,11 @@
 				return false;
 			}
 
+			// Everything the form collected travels in fields, including the
+			// email address. There is no separate top-level email argument to
+			// pass: one generic mechanism, one place to map your fields.
+
 			Analytics.setIdentity({
-
-				// The email travels twice on purpose. At the top level the
-				// client hashes it into the anchor the backend identifies the
-				// Individual by; inside fields it stays in plaintext, which is
-				// what fills the Individual's own column. The hash is one way,
-				// so one cannot be derived from the other.
-
-				email: String(values.Email || '').trim(),
 				fields: getFields(values)
 			});
 
