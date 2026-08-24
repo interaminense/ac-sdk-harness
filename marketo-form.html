@@ -290,6 +290,8 @@
 			</div>
 		</div>
 
+		<p class="note" id="sdkNote"></p>
+
 		<h2>The form</h2>
 		<p class="note">
 			Submitting drives the real script, which navigates away and comes back.
@@ -342,7 +344,10 @@
 		<script>
 			const DEV_CDN_URL = 'https://analytics-js-dev-cdn.liferay.com';
 			const LOCAL_SDK_URL = './local/analytics-all-min.js';
-			const LOCAL_SCRIPT_URL = './local/marketo-page-script.js';
+			// Committed, not a local/ drop point: unlike the SDK there is no CDN
+			// to fall back to, so a gitignored copy would 404 on GitHub Pages.
+
+			const SCRIPT_PATH = './marketo-integration.js';
 
 			const params = new URLSearchParams(location.search);
 
@@ -354,7 +359,7 @@
 
 			const SCRIPT_URL =
 				!requestedScript || requestedScript === 'local'
-					? LOCAL_SCRIPT_URL
+					? SCRIPT_PATH
 					: requestedScript;
 
 			const CONFIG = {
@@ -639,6 +644,15 @@
 
 				updateTrip({returned: submitForm(values, followUpUrl)});
 			});
+
+			document.getElementById('sdkNote').innerHTML =
+				SDK_URL === DEV_CDN_URL
+					? 'Running against the dev CDN. Until the client release that ' +
+						'carries <code>fields</code> and <code>flush()</code> reaches ' +
+						'it, the mapped fields are dropped and the redirect is not ' +
+						'held — point <code>?sdk=</code> at a newer build to see the ' +
+						'script do its job.'
+					: '';
 
 			renderLog(null);
 

@@ -15,6 +15,7 @@ live SDK, drives it, and shows which analytics events fire.
 | `reveal-scenarios.html` | Every plugin's view/impression asset hidden by an ancestor, revealed via a toggle. |
 | `flush-away.html` | Navigation target for `flush.html`'s round trips; carries no SDK on purpose. |
 | `marketo-form.html` | The Marketo integration script (LPD-103259) against a stand-in for the liferay.com demo form. |
+| `marketo-integration.js` | Committed copy of the script published on the Confluence guide, so the harness has something to load. |
 | `flush.html` | `Analytics.flush()` and the request-timeout behavior around it (LPD-103258). |
 | `set-identity-fields.html` | The optional `fields` array on `setIdentity()` and the identity dedup that hangs off it (LPD-103257). |
 | `page-unloaded.html` | Which lifecycle event reports `pageUnloaded`, plus the back/forward cache cases (LPD-100223). |
@@ -254,6 +255,16 @@ LPD-103258 explicitly rules out, so the page measures it rather than asserting
 on it.
 
 ## The Marketo integration script
+
+The script itself is **committed** at `marketo-integration.js`, not dropped into
+`local/`. That directory is gitignored, which is fine for the SDK bundle because
+`?sdk=` falls back to the CDN — but the integration script has no CDN to fall
+back to, so a gitignored copy 404s on GitHub Pages and the page loads broken.
+
+It is a verbatim copy of the code block on
+[the Confluence guide](https://liferay.atlassian.net/wiki/spaces/ENGAC/pages/5290819624).
+The page is the source of truth; edit it there first, then re-copy. The file
+carries a header saying so.
 
 `marketo-form.html` drives the LPD-103259 script. Two things about it are
 deliberate:
