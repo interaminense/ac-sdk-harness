@@ -279,6 +279,17 @@
 				</div>
 				<div class="detail"></div>
 			</div>
+			<div class="probe" data-probe="scenario" data-state="idle">
+				<div class="title">
+					<span class="badge">idle</span><span id="scenarioTitle"
+						>no scenario run yet</span
+					>
+				</div>
+				<div class="what" id="scenarioWhat">
+					Pick one below to see what it means for delivery.
+				</div>
+				<div class="detail"></div>
+			</div>
 			<div class="probe" data-probe="order" data-state="idle">
 				<div class="title">
 					<span class="badge">idle</span>the request left before the page did
@@ -332,11 +343,44 @@
 				the script is expected to drop.
 			</div>
 			<div class="actions">
-				<button disabled id="submit" type="submit">Submit</button>
 				<button class="ghost" id="reset" type="button">Reset</button>
-				<span class="hint" id="hint"></span>
+				<span class="hint" id="hint"
+					>Pick a scenario below — each one submits this form.</span
+				>
 			</div>
 		</form>
+
+		<h2>Scenarios</h2>
+		<p class="note">
+			The first two differ in <em>where the submit sends the visitor</em>; the
+			last two differ in <em>who the visitor already is</em>. Each performs a
+			real submission through the script.
+		</p>
+		<div class="mkto">
+			<div class="actions">
+				<button disabled id="sameSite" type="button">
+					Stays on the site
+				</button>
+				<button disabled id="offSite" type="button">
+					Redirects off the site
+				</button>
+				<button disabled id="anonymous" type="button">
+					Anonymous visitor
+				</button>
+				<button disabled id="known" type="button">Known visitor</button>
+			</div>
+			<div class="hidden-note" id="scenarioNote">
+				<strong>Stays on the site</strong> lands on a page of this harness, so
+				anything still queued would have a later chance to go out.
+				<strong>Redirects off the site</strong> leaves for
+				<code>liferay.com</code> — a different origin, where the queue can
+				never be drained, so the request has to have left already. Come back
+				with the browser's Back button and the report appears.
+				<strong>Anonymous</strong> starts with no identity at all;
+				<strong>Known</strong> signs a visitor in first, then submits the form
+				under a different address.
+			</div>
+		</div>
 
 		<h2>The request that left</h2>
 		<div class="log" id="log"></div>
@@ -488,6 +532,20 @@
 				return values;
 			}
 
+			// The client stores its ids JSON-encoded, so the raw value carries
+			// quotes. Read it the way the client wrote it.
+
+			function readUserId() {
+				try {
+					return JSON.parse(
+						localStorage.getItem('ac_client_user_id') || 'null'
+					);
+				}
+				catch (error) {
+					return localStorage.getItem('ac_client_user_id');
+				}
+			}
+
 			function setProbe(name, state, detail) {
 				const probe = document.querySelector('[data-probe="' + name + '"]');
 
@@ -592,7 +650,103 @@
 						: 'no request was captured before the navigation'
 				);
 
+				reportScenario(body);
+
 				localStorage.removeItem(TRIP_KEY);
+			}
+
+			// Each scenario asks a different question of the same submission.
+
+			function reportScenario(body) {
+				const scenario = trip.scenario || 'same-site';
+				const left = Boolean(trip.requestAt);
+				const userIdAfter = readUserId();
+
+				document.getElementById('scenarioTitle').textContent =
+					{
+						anonymous: 'Anonymous visitor',
+						known: 'Known visitor',
+						'off-site': 'Redirected off the site',
+						'same-site': 'Stayed on the site',
+					}[scenario] || scenario;
+
+				if (scenario === 'off-site') {
+					document.getElementById('scenarioWhat').textContent =
+						'The visitor left for another origin, where the queue can ' +
+						'never be drained. The request had to have gone out before ' +
+						'the navigation, or the submission is lost for good.';
+
+					setProbe(
+						'scenario',
+						left ? 'pass' : 'fail',
+						left
+							? 'left for ' +
+								trip.followUpUrl +
+								' with the identity already sent — nothing was riding ' +
+								'on a later page load'
+							: 'the visitor left with the identity still queued, on an ' +
+								'origin they are not coming back to'
+					);
+
+					return;
+				}
+
+				if (scenario === 'known') {
+					const rotated = trip.userIdBefore !== userIdAfter;
+
+					document.getElementById('scenarioWhat').textContent =
+						'Signed in first as ' +
+						trip.priorEmail +
+						', then submitted the form under a different address.';
+
+					setProbe(
+						'scenario',
+						left && rotated ? 'pass' : 'fail',
+						rotated
+							? 'the userId rotated (' +
+								String(trip.userIdBefore).slice(0, 8) +
+								'… to ' +
+								String(userIdAfter).slice(0, 8) +
+								'…), so the two addresses stay separate Individuals ' +
+								'rather than being merged'
+							: 'the userId did not rotate, which would merge two ' +
+								'different people onto one Individual'
+					);
+
+					return;
+				}
+
+				if (scenario === 'anonymous') {
+					document.getElementById('scenarioWhat').textContent =
+						'No identity had ever been set, so this submission is what ' +
+						'turns the visitor from anonymous into known.';
+
+					setProbe(
+						'scenario',
+						left && body.emailAddressHashed ? 'pass' : 'fail',
+						'the anonymous userId ' +
+							String(trip.userIdBefore).slice(0, 8) +
+							'… was kept and carried into the identity, so the visit ' +
+							'so far is not orphaned from the person'
+					);
+
+					return;
+				}
+
+				document.getElementById('scenarioWhat').textContent =
+					'The visitor landed on a page of this harness, which loads the ' +
+					'client again — so anything still queued would have had a later ' +
+					'chance to go out.';
+
+				setProbe(
+					'scenario',
+					left ? 'pass' : 'fail',
+					left
+						? 'the identity was already sent on departure, so nothing ' +
+							'depended on the landing page loading the client'
+						: 'nothing was sent before leaving; delivery depended entirely ' +
+							'on the landing page'
+				);
 			}
 
 			document.getElementById('reset').addEventListener('click', () => {
@@ -605,25 +759,46 @@
 				location.href = 'marketo-form.html' + location.search;
 			});
 
-			document.getElementById('mkto').addEventListener('submit', (event) => {
-				event.preventDefault();
+			const OFF_SITE_URL =
+				'https://www.liferay.com/request-a-demo/thank-you';
 
+			const QUEUE_KEYS = [
+				'ac_client_batch',
+				'ac_message_queue',
+				'ac_message_queue_account',
+				'ac_message_queue_identity',
+			];
+
+			function runScenario(scenario) {
 				const values = readForm();
 
-				values.Email =
-					'demo-' + Date.now() + '@example.com';
+				values.Email = 'demo-' + Date.now() + '@example.com';
 
-				// create() queues an anonymous identity of its own at load. Clear
-				// it, or flush() sends both and the report describes whichever
-				// fetch happened to land last.
+				// A known visitor is one the site already identified — a sign-in,
+				// say — before ever reaching this form. Do that first, so the
+				// state under test is a real prior identity.
 
-				['ac_client_batch', 'ac_message_queue', 'ac_message_queue_account', 'ac_message_queue_identity'].forEach(
-					(key) => localStorage.setItem(key, '[]')
-				);
+				let priorEmail = null;
+
+				if (scenario === 'known') {
+					priorEmail = 'known-' + Date.now() + '@example.com';
+
+					window.__ac.setIdentity({email: priorEmail});
+				}
+
+				// create() queues an anonymous identity of its own at load, and a
+				// known visitor has just queued another. Clear both, or the flush
+				// sends them alongside the form's and the report describes
+				// whichever fetch happened to land last.
+
+				QUEUE_KEYS.forEach((key) => localStorage.setItem(key, '[]'));
 
 				updateTrip({
+					priorEmail: priorEmail,
+					scenario: scenario,
 					startedAt: Date.now(),
 					submittedCount: Object.keys(values).length,
+					userIdBefore: readUserId(),
 					wired: typeof submitForm === 'function',
 				});
 
@@ -635,24 +810,30 @@
 					return;
 				}
 
-				// The follow-up URL the script will navigate to. It carries the
-				// query string so the return leg keeps driving the same builds.
-
 				const followUpUrl =
-					'flush-away.html?to=' +
-					encodeURIComponent('marketo-form.html' + location.search);
+					scenario === 'off-site'
+						? OFF_SITE_URL
+						: 'flush-away.html?to=' +
+							encodeURIComponent(
+								'marketo-form.html' + location.search
+							);
 
+				updateTrip({followUpUrl: followUpUrl});
 				updateTrip({returned: submitForm(values, followUpUrl)});
-			});
+			}
 
-			document.getElementById('sdkNote').innerHTML =
-				SDK_URL === DEV_CDN_URL
-					? 'Running against the dev CDN. Until the client release that ' +
-						'carries <code>fields</code> and <code>flush()</code> reaches ' +
-						'it, the mapped fields are dropped and the redirect is not ' +
-						'held — point <code>?sdk=</code> at a newer build to see the ' +
-						'script do its job.'
-					: '';
+			[
+				['anonymous', 'anonymous'],
+				['known', 'known'],
+				['offSite', 'off-site'],
+				['sameSite', 'same-site'],
+			].forEach(function (pair) {
+				document
+					.getElementById(pair[0])
+					.addEventListener('click', function () {
+						runScenario(pair[1]);
+					});
+			});
 
 			renderLog(null);
 
@@ -687,7 +868,9 @@
 					return loadScript(SCRIPT_URL);
 				})
 				.then(() => {
-					document.getElementById('submit').disabled = false;
+					['anonymous', 'known', 'offSite', 'sameSite'].forEach((id) => {
+						document.getElementById(id).disabled = false;
+					});
 
 					if (trip) {
 						reportTrip();

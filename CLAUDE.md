@@ -284,6 +284,19 @@ report *when* the redirect would have happened relative to the request. That
 ordering is the point of the whole script, so it is asserted on directly rather
 than inferred from a screenshot.
 
+**The four scenarios.** Two of them vary where the submit sends the visitor
+(same origin, or off to `liferay.com` — a genuinely different origin where the
+queue can never be drained), and two vary who the visitor already is (never
+identified, or signed in first under another address). The known-visitor one is
+the interesting one: it asserts the `userId` **rotates**, which is what keeps
+two different people from being merged onto one Individual.
+
+Each scenario clears the four queue keys before submitting. `create()` queues an
+anonymous identity of its own at load, and the known-visitor setup queues
+another; without the reset the flush sends them alongside the form's and the
+report describes whichever fetch happened to land last. That was a real bug
+here — the first run reported an empty `fields` array and the SDK was innocent.
+
 The script URL comes from `?script=`, defaulting to
 `./local/liferay-analytics-marketo.js` — the same gitignored drop point pattern
 as the SDK bundle.
