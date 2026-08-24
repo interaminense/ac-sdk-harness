@@ -1,0 +1,845 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta content="width=device-width, initial-scale=1.0" name="viewport" />
+
+		<title>ac-sdk-harness — Marketo form</title>
+
+		<style>
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				background: #f8fafc;
+				color: #0f172a;
+				font-family: system-ui, sans-serif;
+				line-height: 1.5;
+				margin: 0 auto;
+				max-width: 980px;
+				padding: 40px 24px 64px;
+			}
+			h1 {
+				font-size: 26px;
+				margin: 0 0 4px;
+			}
+			h2 {
+				font-size: 17px;
+				margin: 32px 0 10px;
+			}
+			.lede {
+				color: #475569;
+				margin: 0 0 24px;
+			}
+			a {
+				color: #1d4ed8;
+			}
+			code {
+				background: #e2e8f0;
+				border-radius: 4px;
+				font-size: 0.9em;
+				padding: 1px 5px;
+			}
+			.env {
+				background: #0f172a;
+				border-radius: 10px;
+				color: #e2e8f0;
+				font-family: ui-monospace, monospace;
+				font-size: 12.5px;
+				overflow-x: auto;
+				padding: 16px 20px;
+			}
+			.env .k {
+				color: #93c5fd;
+				display: inline-block;
+				min-width: 150px;
+			}
+			.env .v {
+				color: #86efac;
+				word-break: break-all;
+			}
+			.verdict {
+				border-radius: 10px;
+				font-size: 14px;
+				margin: 18px 0 0;
+				padding: 14px 18px;
+			}
+			.verdict.pending {
+				background: #f1f5f9;
+				border: 1px solid #cbd5e1;
+				color: #475569;
+			}
+			.verdict.supported {
+				background: #ecfdf5;
+				border: 1px solid #6ee7b7;
+				color: #065f46;
+			}
+			.verdict.missing {
+				background: #fffbeb;
+				border: 1px solid #fcd34d;
+				color: #92400e;
+			}
+			.verdict.blocked {
+				background: #fef2f2;
+				border: 1px solid #fca5a5;
+				color: #991b1b;
+			}
+			button {
+				background: #1d4ed8;
+				border: 0;
+				border-radius: 7px;
+				color: #fff;
+				cursor: pointer;
+				font-size: 14px;
+				font-weight: 600;
+				padding: 9px 18px;
+			}
+			button:disabled {
+				background: #94a3b8;
+				cursor: not-allowed;
+			}
+			button.ghost {
+				background: #fff;
+				border: 1px solid #cbd5e1;
+				color: #0f172a;
+			}
+			.probe {
+				background: #fff;
+				border: 1px solid #e2e8f0;
+				border-left-width: 4px;
+				border-radius: 8px;
+				margin-bottom: 10px;
+				padding: 12px 16px;
+			}
+			.probe[data-state='pass'] {
+				border-left-color: #10b981;
+			}
+			.probe[data-state='fail'] {
+				border-left-color: #ef4444;
+			}
+			.probe[data-state='na'] {
+				border-left-color: #cbd5e1;
+				opacity: 0.65;
+			}
+			.probe[data-state='running'] {
+				border-left-color: #f59e0b;
+			}
+			.probe[data-state='idle'] {
+				border-left-color: #e2e8f0;
+			}
+			.probe .title {
+				font-size: 14px;
+				font-weight: 600;
+			}
+			.probe .title .badge {
+				border-radius: 999px;
+				font-size: 10.5px;
+				font-weight: 700;
+				margin-right: 8px;
+				padding: 2px 8px;
+				text-transform: uppercase;
+			}
+			.probe[data-state='pass'] .badge {
+				background: #d1fae5;
+				color: #065f46;
+			}
+			.probe[data-state='fail'] .badge {
+				background: #fee2e2;
+				color: #991b1b;
+			}
+			.probe[data-state='na'] .badge,
+			.probe[data-state='idle'] .badge {
+				background: #e2e8f0;
+				color: #475569;
+			}
+			.probe[data-state='running'] .badge {
+				background: #fef3c7;
+				color: #92400e;
+			}
+			.probe .what {
+				color: #475569;
+				font-size: 13px;
+				margin-top: 3px;
+			}
+			.probe .detail {
+				color: #0f172a;
+				font-family: ui-monospace, monospace;
+				font-size: 12px;
+				margin-top: 7px;
+				white-space: pre-wrap;
+				word-break: break-all;
+			}
+			.mkto {
+				background: #fff;
+				border: 1px solid #e2e8f0;
+				border-radius: 8px;
+				display: grid;
+				gap: 10px 14px;
+				grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+				padding: 18px 20px;
+			}
+			.mkto label {
+				display: block;
+				font-size: 12px;
+				font-weight: 600;
+			}
+			.mkto input,
+			.mkto select {
+				border: 1px solid #cbd5e1;
+				border-radius: 6px;
+				font-size: 13px;
+				margin-top: 3px;
+				padding: 7px 9px;
+				width: 100%;
+			}
+			.mkto .actions {
+				align-items: center;
+				display: flex;
+				gap: 12px;
+				grid-column: 1 / -1;
+			}
+			.mkto .hint {
+				color: #64748b;
+				font-size: 12px;
+			}
+			.hidden-note {
+				color: #64748b;
+				font-size: 12px;
+				grid-column: 1 / -1;
+			}
+			.log {
+				background: #0f172a;
+				border-radius: 10px;
+				color: #e2e8f0;
+				font-family: ui-monospace, monospace;
+				font-size: 12px;
+				max-height: 420px;
+				overflow: auto;
+				padding: 14px 18px;
+			}
+			.log .entry {
+				border-bottom: 1px solid #1e293b;
+				padding: 8px 0;
+			}
+			.log .entry:last-child {
+				border-bottom: 0;
+			}
+			.log .when {
+				color: #94a3b8;
+			}
+			.log .who {
+				color: #fbbf24;
+			}
+			.log .nav {
+				color: #f472b6;
+			}
+			.log pre {
+				margin: 5px 0 0;
+				white-space: pre-wrap;
+				word-break: break-all;
+			}
+			.log .key {
+				color: #93c5fd;
+			}
+			.empty {
+				color: #64748b;
+			}
+			.note {
+				color: #64748b;
+				font-size: 13px;
+			}
+		</style>
+	</head>
+
+	<body>
+		<h1>Marketo form</h1>
+		<p class="lede">
+			Drives the integration script from LPD-103259 against a stand-in for the
+			<a href="https://www.liferay.com/request-a-demo">liferay.com demo form</a>
+			— same Marketo form id, same field names, including the hidden campaign
+			fields the real one carries. The script is loaded as a plain
+			<code>&lt;script&gt;</code>, exactly as a site owner would. Navigation is
+			intercepted rather than performed, so the page can report
+			<em>when</em> it would have happened. Loads the SDK with
+			<code>?sdk=</code> and the script with <code>?script=</code>; both accept
+			<code>local</code>.
+		</p>
+
+		<div class="env" id="env"></div>
+
+		<div class="verdict pending" id="verdict">Waiting for the script to load…</div>
+
+		<h2>Probes</h2>
+		<p class="note">
+			Each probe drives a fresh stand-in form through the script, the way a
+			real submission would.
+		</p>
+		<p>
+			<button disabled id="run">Run all probes</button>
+			<button class="ghost" id="reset">Reset SDK state</button>
+		</p>
+
+		<div id="probes">
+			<div class="probe" data-probe="exists" data-state="idle">
+				<div class="title">
+					<span class="badge">idle</span>the script exposes
+					<code>trackMarketoForm</code>
+				</div>
+				<div class="what">
+					Loading the file as a classic script is enough to reach it.
+				</div>
+				<div class="detail"></div>
+			</div>
+			<div class="probe" data-probe="suppresses" data-state="idle">
+				<div class="title">
+					<span class="badge">idle</span>Marketo's own redirect is suppressed
+				</div>
+				<div class="what">
+					The success handler returns <code>false</code>, which is what stops
+					Marketo from navigating on its own.
+				</div>
+				<div class="detail"></div>
+			</div>
+			<div class="probe" data-probe="maps" data-state="idle">
+				<div class="title">
+					<span class="badge">idle</span>only the five mapped fields go out
+				</div>
+				<div class="what">
+					The real form also submits Phone and a dozen hidden campaign fields;
+					those must not reach the Identity Service.
+				</div>
+				<div class="detail"></div>
+			</div>
+			<div class="probe" data-probe="email-twice" data-state="idle">
+				<div class="title">
+					<span class="badge">idle</span>the email travels both ways
+				</div>
+				<div class="what">
+					Hashed at the top level (the anchor the backend identifies by) and
+					in plaintext inside <code>fields</code> (what fills the column).
+				</div>
+				<div class="detail"></div>
+			</div>
+			<div class="probe" data-probe="order" data-state="idle">
+				<div class="title">
+					<span class="badge">idle</span>navigation waits for the request
+				</div>
+				<div class="what">
+					The redirect must happen after the identity has left, not before.
+				</div>
+				<div class="detail"></div>
+			</div>
+			<div class="probe" data-probe="no-analytics" data-state="idle">
+				<div class="title">
+					<span class="badge">idle</span>a missing client does not break the
+					form
+				</div>
+				<div class="what">
+					With no <code>Analytics</code> on the page — an unaccepted consent
+					banner — the visitor must still be redirected.
+				</div>
+				<div class="detail"></div>
+			</div>
+		</div>
+
+		<h2>Submit it by hand</h2>
+		<p class="note">
+			The same stand-in form, wired to the script. Edit anything and submit.
+		</p>
+		<form class="mkto" id="mkto">
+			<div>
+				<label for="FirstName">First Name</label>
+				<input id="FirstName" value="John" />
+			</div>
+			<div>
+				<label for="LastName">Last Name</label>
+				<input id="LastName" value="Doe" />
+			</div>
+			<div>
+				<label for="Email">Business Email</label>
+				<input id="Email" value="john.doe@example.com" />
+			</div>
+			<div>
+				<label for="Company">Company</label>
+				<input id="Company" value="Acme Inc" />
+			</div>
+			<div>
+				<label for="Country">Country</label>
+				<select id="Country">
+					<option>Brazil</option>
+					<option>United States</option>
+					<option>Spain</option>
+				</select>
+			</div>
+			<div>
+				<label for="Phone">Phone</label>
+				<input id="Phone" value="+55 11 99999-0000" />
+			</div>
+			<div class="hidden-note">
+				Plus the hidden fields the real form carries —
+				<code>Last_Campaign__c</code>, <code>Last_Source__c</code>,
+				<code>Last_Medium__c</code>, <code>Recent_Asset_URL__c</code> — which
+				the script is expected to drop.
+			</div>
+			<div class="actions">
+				<button disabled id="submit" type="submit">Submit</button>
+				<span class="hint" id="hint"
+					>Navigation is intercepted, so nothing actually leaves.</span
+				>
+			</div>
+		</form>
+
+		<h2>What happened</h2>
+		<div class="log" id="log"></div>
+
+		<script>
+			const DEV_CDN_URL = 'https://analytics-js-dev-cdn.liferay.com';
+			const LOCAL_SDK_URL = './local/analytics-all-min.js';
+			const LOCAL_SCRIPT_URL = './local/liferay-analytics-marketo.js';
+
+			const params = new URLSearchParams(location.search);
+
+			const requestedSDK = params.get('sdk');
+			const requestedScript = params.get('script');
+
+			const SDK_URL =
+				requestedSDK === 'local'
+					? LOCAL_SDK_URL
+					: requestedSDK || DEV_CDN_URL;
+
+			const SCRIPT_URL =
+				!requestedScript || requestedScript === 'local'
+					? LOCAL_SCRIPT_URL
+					: requestedScript;
+
+			// A long interval keeps the flush loop from sending anything on its
+			// own, so every request below is attributable to the script.
+
+			const CONFIG = {
+				channelId: '831904237734003774',
+				dataSourceId: '820802606605225785',
+				endpointUrl: 'https://osbasahpublisher-ac-internal.lfr.cloud',
+				flushInterval: 600000,
+				projectId: 'asah59dbaa580b264c578bb15c878dd363f0',
+			};
+
+			const FOLLOW_UP_URL = '/request-a-demo/thank-you';
+
+			// The values the real form 1086 submits, hidden campaign fields and
+			// all. The script is expected to map five of these and drop the rest.
+
+			const HIDDEN_VALUES = {
+				Last_CID__c: 'cid-4711',
+				Last_Campaign__c: 'demo-request-q3',
+				Last_Medium__c: 'cpc',
+				Last_Source__c: 'google',
+				Marketing_Subscription_Opt_In__c: true,
+				Recent_Asset_URL__c: 'https://www.liferay.com/resources/ebook',
+				Where_did_you_hear_about_Liferay__c: 'Search engine',
+			};
+
+			const MAPPED = [
+				'accountName',
+				'country',
+				'emailAddress',
+				'firstName',
+				'lastName',
+			];
+
+			Object.keys(localStorage)
+				.filter((key) => key.startsWith('ac_'))
+				.forEach((key) => localStorage.removeItem(key));
+
+			const events = [];
+
+			const nativeFetch = window.fetch.bind(window);
+
+			window.fetch = function (url, options) {
+				const href = typeof url === 'string' ? url : url && url.url;
+
+				if (href && href.indexOf(CONFIG.endpointUrl) === 0) {
+					let body = null;
+
+					try {
+						body = JSON.parse((options && options.body) || 'null');
+					}
+					catch (error) {
+						body = {unparseable: String((options || {}).body)};
+					}
+
+					events.push({at: performance.now(), body, kind: 'request'});
+
+					renderLog();
+				}
+
+				return nativeFetch(url, options);
+			};
+
+			function recordNavigation(url) {
+				events.push({at: performance.now(), kind: 'navigate', url});
+
+				renderLog();
+			}
+
+			function renderLog() {
+				const log = document.getElementById('log');
+
+				if (!events.length) {
+					log.innerHTML = '<div class="empty">Nothing yet.</div>';
+
+					return;
+				}
+
+				log.innerHTML = events
+					.map((entry, index) => {
+						const when =
+							'<span class="when">#' +
+							(index + 1) +
+							' · ' +
+							Math.round(entry.at) +
+							'ms</span> ';
+
+						if (entry.kind === 'navigate') {
+							return (
+								'<div class="entry">' +
+								when +
+								'<span class="nav">NAVIGATE ' +
+								entry.url +
+								'</span></div>'
+							);
+						}
+
+						const json = JSON.stringify(entry.body, null, 2).replace(
+							/"([^"]+)":/g,
+							'<span class="key">"$1"</span>:'
+						);
+
+						return (
+							'<div class="entry">' +
+							when +
+							'<span class="who">POST /identity</span><pre>' +
+							json +
+							'</pre></div>'
+						);
+					})
+					.join('');
+			}
+
+			function setProbe(name, state, detail) {
+				const probe = document.querySelector('[data-probe="' + name + '"]');
+
+				probe.dataset.state = state;
+				probe.querySelector('.badge').textContent = state;
+				probe.querySelector('.detail').textContent = detail || '';
+			}
+
+			function setVerdict(state, html) {
+				const verdict = document.getElementById('verdict');
+
+				verdict.className = 'verdict ' + state;
+				verdict.innerHTML = html;
+			}
+
+			function readForm() {
+				const values = Object.assign({}, HIDDEN_VALUES);
+
+				['Company', 'Country', 'Email', 'FirstName', 'LastName', 'Phone'].forEach(
+					(name) => {
+						values[name] = document.getElementById(name).value;
+					}
+				);
+
+				return values;
+			}
+
+			// Stands in for MktoForms2: whenReady hands over a form, and submit
+			// drives whatever the script registered through onSuccess, returning
+			// what the handler returned so the suppressed redirect is observable.
+
+			function createMktoForms2(values) {
+				let handler;
+
+				const form = {
+					getValues: () => values,
+					onSuccess: (callback) => {
+						handler = callback;
+					},
+				};
+
+				return {
+					submit: () => handler(values, FOLLOW_UP_URL),
+					whenReady: (callback) => callback(form),
+				};
+			}
+
+			// Runs one submission end to end and reports what left the page.
+
+			function submitThrough({analytics, values}) {
+				const mktoForms2 = createMktoForms2(values);
+				const navigations = [];
+
+				window.trackMarketoForm({
+					analytics,
+					mktoForms2,
+					navigate: (url) => {
+						navigations.push({at: performance.now(), url});
+
+						recordNavigation(url);
+					},
+				});
+
+				const before = events.filter((e) => e.kind === 'request').length;
+				const returned = mktoForms2.submit();
+
+				return {
+					navigations,
+					requestsBefore: before,
+					returned,
+				};
+			}
+
+			function waitFor(predicate, timeoutMs) {
+				return new Promise((resolve) => {
+					const deadline = Date.now() + timeoutMs;
+
+					const tick = () => {
+						if (predicate() || Date.now() >= deadline) {
+							resolve(predicate());
+
+							return;
+						}
+
+						setTimeout(tick, 60);
+					};
+
+					tick();
+				});
+			}
+
+			const PROBES = [
+				'exists',
+				'suppresses',
+				'maps',
+				'email-twice',
+				'order',
+				'no-analytics',
+			];
+
+			async function runProbes() {
+				document.getElementById('run').disabled = true;
+				document.getElementById('run').textContent = 'Running…';
+
+				PROBES.forEach((name) => setProbe(name, 'running', ''));
+
+				// 1 — the script has to be reachable from a classic script tag.
+
+				const available = typeof window.trackMarketoForm === 'function';
+
+				setProbe(
+					'exists',
+					available ? 'pass' : 'fail',
+					'typeof window.trackMarketoForm === "' +
+						typeof window.trackMarketoForm +
+						'"'
+				);
+
+				if (!available) {
+					PROBES.slice(1).forEach((name) =>
+						setProbe(name, 'na', 'Not applicable without the script.')
+					);
+
+					setVerdict(
+						'missing',
+						'<b>The integration script did not load.</b> Check ?script=.'
+					);
+
+					document.getElementById('run').disabled = false;
+					document.getElementById('run').textContent = 'Run all probes';
+
+					return;
+				}
+
+				setVerdict(
+					'supported',
+					'<b>Script loaded.</b> Every probe below is meaningful.'
+				);
+
+				// 2, 3, 4, 5 — one real submission answers all four.
+
+				const values = readForm();
+
+				values.Email = 'probe-' + Date.now() + '@example.com';
+
+				const run = submitThrough({analytics: window.__ac, values});
+
+				setProbe(
+					'suppresses',
+					run.returned === false ? 'pass' : 'fail',
+					'the success handler returned ' + JSON.stringify(run.returned)
+				);
+
+				await waitFor(
+					() =>
+						events.filter((e) => e.kind === 'request').length >
+						run.requestsBefore,
+					8000
+				);
+
+				const request = events.filter((e) => e.kind === 'request').pop();
+				const body = (request && request.body) || {};
+				const names = (body.fields || []).map((field) => field.name);
+
+				const onlyMapped =
+					names.length === MAPPED.length &&
+					MAPPED.every((name, index) => names[index] === name);
+
+				setProbe(
+					'maps',
+					onlyMapped ? 'pass' : 'fail',
+					'sent [' +
+						names.join(', ') +
+						'] out of ' +
+						Object.keys(values).length +
+						' submitted values'
+				);
+
+				const emailField = (body.fields || []).find(
+					(field) => field.name === 'emailAddress'
+				);
+
+				const hashed = body.emailAddressHashed;
+
+				setProbe(
+					'email-twice',
+					emailField && emailField.value === values.Email && hashed
+						? 'pass'
+						: 'fail',
+					'emailAddressHashed: ' +
+						String(hashed).slice(0, 16) +
+						'… · fields.emailAddress: ' +
+						(emailField ? emailField.value : '(absent)')
+				);
+
+				await waitFor(() => run.navigations.length, 8000);
+
+				const navigation = run.navigations[0];
+
+				const ordered =
+					navigation && request && navigation.at >= request.at;
+
+				setProbe(
+					'order',
+					ordered ? 'pass' : 'fail',
+					navigation
+						? 'request at ' +
+							Math.round(request.at) +
+							'ms, navigation at ' +
+							Math.round(navigation.at) +
+							'ms — held for ' +
+							Math.round(navigation.at - request.at) +
+							'ms after the send'
+						: 'the script never navigated'
+				);
+
+				// 6 — the consent case: no client on the page at all.
+
+				const withoutAnalytics = submitThrough({
+					analytics: null,
+					values: readForm(),
+				});
+
+				await waitFor(() => withoutAnalytics.navigations.length, 3000);
+
+				setProbe(
+					'no-analytics',
+					withoutAnalytics.navigations.length &&
+						withoutAnalytics.returned === false
+						? 'pass'
+						: 'fail',
+					withoutAnalytics.navigations.length
+						? 'navigated to ' +
+							withoutAnalytics.navigations[0].url +
+							' with no client on the page'
+						: 'the visitor was left on the form'
+				);
+
+				document.getElementById('run').disabled = false;
+				document.getElementById('run').textContent = 'Run all probes';
+			}
+
+			document.getElementById('mkto').addEventListener('submit', (event) => {
+				event.preventDefault();
+
+				const run = submitThrough({
+					analytics: window.__ac,
+					values: readForm(),
+				});
+
+				document.getElementById('hint').textContent =
+					'Submitted — the handler returned ' +
+					JSON.stringify(run.returned) +
+					'; watch the log below.';
+			});
+
+			document.getElementById('run').addEventListener('click', runProbes);
+
+			document.getElementById('reset').addEventListener('click', () => {
+				Object.keys(localStorage)
+					.filter((key) => key.startsWith('ac_'))
+					.forEach((key) => localStorage.removeItem(key));
+
+				location.reload();
+			});
+
+			renderLog();
+
+			document.getElementById('env').innerHTML =
+				'<div><span class="k">SDK URL</span><span class="v">' +
+				SDK_URL +
+				'</span></div><div><span class="k">script URL</span><span class="v">' +
+				SCRIPT_URL +
+				'</span></div><div><span class="k">Marketo form</span><span class="v">1086 — EN Demo/Quote (liferay.com/request-a-demo)</span></div>';
+
+			function loadScript(src) {
+				return new Promise((resolve, reject) => {
+					const element = document.createElement('script');
+
+					element.onerror = () => reject(new Error(src));
+					element.onload = resolve;
+					element.src = src;
+
+					document.head.appendChild(element);
+				});
+			}
+
+			loadScript(SDK_URL)
+				.then(() => {
+					window.__ac = Analytics.create(CONFIG);
+
+					// The integration script is loaded exactly the way a site owner
+					// would load it: a plain script tag, after the client.
+
+					return loadScript(SCRIPT_URL);
+				})
+				.then(() => {
+					document.getElementById('run').disabled = false;
+					document.getElementById('submit').disabled = false;
+
+					setVerdict(
+						'pending',
+						'SDK ' +
+							(window.__ac.version || 'unknown') +
+							' and the integration script are loaded. Click <b>Run all probes</b>.'
+					);
+
+					window.__harnessReady = true;
+				})
+				.catch((error) => {
+					setVerdict(
+						'blocked',
+						'<b>Failed to load</b> — ' + error.message
+					);
+				});
+		</script>
+	</body>
+</html>

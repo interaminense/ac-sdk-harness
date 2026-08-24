@@ -14,6 +14,7 @@ live SDK, drives it, and shows which analytics events fire.
 | `events-on-load.html` | View/impression events that fire on page load. |
 | `reveal-scenarios.html` | Every plugin's view/impression asset hidden by an ancestor, revealed via a toggle. |
 | `flush-away.html` | Navigation target for `flush.html`'s round trips; carries no SDK on purpose. |
+| `marketo-form.html` | The Marketo integration script (LPD-103259) against a stand-in for the liferay.com demo form. |
 | `flush.html` | `Analytics.flush()` and the request-timeout behavior around it (LPD-103258). |
 | `set-identity-fields.html` | The optional `fields` array on `setIdentity()` and the identity dedup that hangs off it (LPD-103257). |
 | `page-unloaded.html` | Which lifecycle event reports `pageUnloaded`, plus the back/forward cache cases (LPD-100223). |
@@ -251,6 +252,30 @@ more than one queue and the endpoint stalled, `flush()` settles at a multiple of
 bound were global. Closing it would mean adding a timeout mechanism, which
 LPD-103258 explicitly rules out, so the page measures it rather than asserting
 on it.
+
+## The Marketo integration script
+
+`marketo-form.html` drives the LPD-103259 script. Two things about it are
+deliberate:
+
+- It loads the script with a **plain `<script>` tag**, after the client, which
+  is how a site owner would. The script carries no `export` statement for that
+  reason — a module cannot be loaded that way — and reaches the page through a
+  `window.trackMarketoForm` assignment.
+- The stand-in form submits the **real** value set of Marketo form 1086, hidden
+  campaign fields (`Last_Campaign__c`, `Last_Source__c`, …) and `Phone`
+  included. The mapping probe asserts on the count precisely so that dropping
+  the unmapped ones is proven rather than assumed: 5 fields out of 13 submitted
+  values.
+
+Navigation is intercepted rather than performed, which is what lets the page
+report *when* the redirect would have happened relative to the request. That
+ordering is the point of the whole script, so it is asserted on directly rather
+than inferred from a screenshot.
+
+The script URL comes from `?script=`, defaulting to
+`./local/liferay-analytics-marketo.js` — the same gitignored drop point pattern
+as the SDK bundle.
 
 ## Conventions for editing the harness pages
 
