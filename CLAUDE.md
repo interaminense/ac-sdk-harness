@@ -284,6 +284,13 @@ report *when* the redirect would have happened relative to the request. That
 ordering is the point of the whole script, so it is asserted on directly rather
 than inferred from a screenshot.
 
+**Every page that needs an unreleased client says so when it does not have
+one.** Both `flush.html` and `set-identity-fields.html` render a note when the
+SDK resolves to the dev CDN. Without it a run there looks like the page is
+broken: the button fires, the request goes out, the feature is silently missing
+from the payload, and nothing explains why. That is exactly how the manual
+**Send identity** button was reported as not working.
+
 **Both harnesses present `setIdentity({fields})` as the shape.** The address is
 just another mapped field; there is no second channel. `emailAddressHashed` is
 still checked, but only inside probe conditions — as proof that nothing leaked

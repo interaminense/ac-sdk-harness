@@ -342,8 +342,8 @@
 		<h2>Manual submit</h2>
 		<p class="note">
 			The Marketo trial-form mapping by hand: each non-empty input below becomes
-			one <code>{name, value}</code> entry. Leave the email blank to send an
-			anonymous identity.
+			one <code>{name, value}</code> entry — including the address, which is
+			mapped like any other field.
 		</p>
 		<form class="manual" id="manual">
 			<div>
@@ -374,6 +374,8 @@
 				>
 			</div>
 		</form>
+
+		<p class="note" id="sdkNote"></p>
 
 		<h2>/identity requests</h2>
 		<p>
@@ -442,7 +444,19 @@
 
 					requests.push({at: new Date(), body});
 
-					renderLog();
+					// Without this, a run against the CDN looks like the page is broken:
+			// the request goes out, the fields are silently dropped, and nothing
+			// says why.
+
+			document.getElementById('sdkNote').innerHTML =
+				SDK_URL === DEV_CDN_URL
+					? 'Running against the dev CDN. Until the client release ' +
+						'carrying <code>fields</code> reaches it, the array is ' +
+						'dropped and the requests below arrive without it — point ' +
+						'<code>?sdk=</code> at a newer build to see it through.'
+					: '';
+
+			renderLog();
 				}
 
 				return nativeFetch(url, options);
@@ -783,16 +797,10 @@
 					}))
 					.filter((field) => field.value);
 
-				const email = document.getElementById('emailAddress').value.trim();
-
-				window.__ac.setIdentity(email ? {email, fields} : {fields});
+				window.__ac.setIdentity({fields});
 
 				document.getElementById('manualHint').textContent =
-					'Sent ' +
-					fields.length +
-					' field(s)' +
-					(email ? '' : ' with no top-level email') +
-					' — watch the log below.';
+					'Sent ' + fields.length + ' field(s) — watch the log below.';
 			});
 
 			document.getElementById('run').addEventListener('click', runProbes);
