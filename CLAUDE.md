@@ -284,6 +284,15 @@ report *when* the redirect would have happened relative to the request. That
 ordering is the point of the whole script, so it is asserted on directly rather
 than inferred from a screenshot.
 
+**The known-visitor scenario checks the hash, not just the rotation.** Its sign
+in passes the address the way DXP does — outside `fields` — and the probe
+computes `sha256(lowercase(email))` in the page and compares. That is the one
+place the harness proves the client hashes correctly when it is given something
+to hash, which is the contrast that makes the fields-only payload's empty
+`emailAddressHashed` meaningful rather than mysterious. The address is
+deliberately mixed case so the lowercasing is exercised too, and the sign in is
+flushed before the form submit so the two payloads are reported separately.
+
 **Every page that needs an unreleased client says so when it does not have
 one.** Both `flush.html` and `set-identity-fields.html` render a note when the
 SDK resolves to the dev CDN. Without it a run there looks like the page is

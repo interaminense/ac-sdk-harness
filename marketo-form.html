@@ -547,6 +547,20 @@
 			// The client stores its ids JSON-encoded, so the raw value carries
 			// quotes. Read it the way the client wrote it.
 
+			// What the client should put in emailAddressHashed for a given
+			// address: sha256 of the lowercased string.
+
+			async function sha256Hex(text) {
+				const digest = await crypto.subtle.digest(
+					'SHA-256',
+					new TextEncoder().encode(text.toLowerCase())
+				);
+
+				return [...new Uint8Array(digest)]
+					.map((byte) => byte.toString(16).padStart(2, '0'))
+					.join('');
+			}
+
 			function readEmailHash() {
 				try {
 					return JSON.parse(
@@ -726,16 +740,32 @@
 					document.getElementById('scenarioWhat').textContent =
 						'Signed in first as ' +
 						trip.priorEmail +
-						', then submitted the form under a different address.';
+						' — passing the address outside fields, the way DXP does — ' +
+						'then submitted the form under a different one.';
 
 					// Report what happened rather than asserting either way: which
 					// of the two is correct is a product question, tracked on
 					// LPD-103564.
 
+					const hashMatches =
+						Boolean(trip.signInHash) &&
+						trip.signInHash === trip.expectedHash;
+
 					setProbe(
 						'scenario',
-						left ? 'pass' : 'fail',
-						(rotated
+						left && hashMatches ? 'pass' : 'fail',
+						'the sign in, which passed the address outside fields, ' +
+							'produced emailAddressHashed ' +
+							String(trip.signInHash).slice(0, 16) +
+							'… — ' +
+							(hashMatches
+								? 'exactly sha256(lowercase(' + trip.priorEmail + '))'
+								: 'NOT the expected ' +
+									String(trip.expectedHash).slice(0, 16) +
+									'…') +
+							'. The form submit that followed sent fields only, so its ' +
+							'own emailAddressHashed was empty. ' +
+							(rotated
 							? 'the userId rotated (' +
 								String(trip.userIdBefore).slice(0, 8) +
 								'… to ' +
@@ -811,7 +841,7 @@
 				'ac_message_queue_identity',
 			];
 
-			function runScenario(scenario) {
+			async function runScenario(scenario) {
 				const values = readForm();
 
 				values.Email = 'demo-' + Date.now() + '@example.com';
@@ -820,12 +850,41 @@
 				// say — before ever reaching this form. Do that first, so the
 				// state under test is a real prior identity.
 
+				let expectedHash = null;
 				let priorEmail = null;
+				let signInHash = null;
 
 				if (scenario === 'known') {
-					priorEmail = 'known-' + Date.now() + '@example.com';
+
+					// Mixed case on purpose: the client lowercases before hashing.
+
+					priorEmail = 'Known-' + Date.now() + '@Example.com';
+
+					// The sign in passes the address the way DXP does — outside
+					// fields — and is flushed so the payload can be inspected.
+					// That is the contrast this scenario is for: given an email
+					// argument the client fills emailAddressHashed; given only
+					// fields it has nothing to hash.
 
 					window.__ac.setIdentity({email: priorEmail});
+
+					await window.__ac.flush();
+
+					const captured = JSON.parse(
+						localStorage.getItem(TRIP_KEY) || '{}'
+					);
+
+					const signInBody = (captured.identityBodies || []).find(
+						(body) => body.emailAddressHashed
+					);
+
+					signInHash = signInBody ? signInBody.emailAddressHashed : null;
+					expectedHash = await sha256Hex(priorEmail);
+
+					// Drop what the sign in captured so the form submit is
+					// reported on its own.
+
+					updateTrip({identityBodies: [], requestAt: null});
 				}
 
 				// create() queues an anonymous identity of its own at load, and a
@@ -841,6 +900,8 @@
 					startedAt: Date.now(),
 					submittedCount: Object.keys(values).length,
 					emailHashBefore: readEmailHash(),
+					expectedHash: expectedHash,
+					signInHash: signInHash,
 					userIdBefore: readUserId(),
 					wired: typeof submitForm === 'function',
 				});
