@@ -7,11 +7,6 @@
  */
 
 (function () {
-
-	// Marketo field name on the left, the Analytics Cloud Individual column it
-	// fills on the right. Add a row for any other field you collect; anything
-	// not listed here is left out of the payload.
-
 	var FIELD_MAP = {
 		Company: 'accountName',
 		Country: 'country',
@@ -19,9 +14,6 @@
 		FirstName: 'firstName',
 		LastName: 'lastName'
 	};
-
-	// Set this to a Marketo form id to track only that form. Leave it null to
-	// track every Marketo form on the page.
 
 	var FORM_ID = null;
 
@@ -59,19 +51,11 @@
 				location.href = followUpUrl;
 			}
 
-			// The client is not on the page. That is normal when a consent
-			// banner has not been accepted yet, and it must never stop the
-			// visitor from reaching the follow-up page.
-
 			if (typeof Analytics === 'undefined') {
 				go();
 
 				return false;
 			}
-
-			// Everything the form collected travels in fields, including the
-			// email address. There is no separate top-level email argument to
-			// pass: one generic mechanism, one place to map your fields.
 
 			Analytics.setIdentity({
 				fields: getFields(values)
@@ -83,16 +67,9 @@
 				return false;
 			}
 
-			// The catch is not redundant: finally() passes a rejection through
-			// rather than swallowing it, so without it a failed send would
-			// surface as an unhandled rejection on your page.
-
 			Analytics.flush()
 				.catch(function () {})
 				.finally(go);
-
-			// Returning false is what stops Marketo from redirecting on its
-			// own, so that the redirect above is the only one that happens.
 
 			return false;
 		});
