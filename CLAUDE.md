@@ -284,6 +284,17 @@ report *when* the redirect would have happened relative to the request. That
 ordering is the point of the whole script, so it is asserted on directly rather
 than inferred from a screenshot.
 
+**Both harnesses present `setIdentity({fields})` as the shape.** The address is
+just another mapped field; there is no second channel. `emailAddressHashed` is
+still checked, but only inside probe conditions — as proof that nothing leaked
+into a top-level argument — never as the headline. Do not put it back in the
+visible text: it describes what is absent rather than what the integration does.
+
+The one place a top-level `email` is still exercised is the `legacy` probe on
+`set-identity-fields.html`. That guards the DXP sign-in bootstrap, which does
+pass it, and is labelled as backward compatibility rather than an option an
+integration may choose. Removing it would drop real regression coverage.
+
 **The script passes no top-level `email`.** Everything, the address included,
 travels through `fields`. Two consequences are asserted on rather than left
 implicit, because both are easy to mistake for bugs:

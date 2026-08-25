@@ -316,12 +316,12 @@
 			</div>
 			<div class="probe" data-probe="no-email" data-state="idle">
 				<div class="title">
-					<span class="badge">idle</span>omitting the email sends an anonymous
-					identity
+					<span class="badge">idle</span><code>setIdentity({fields})</code> is
+					enough on its own
 				</div>
 				<div class="what">
-					<code>setIdentity({fields})</code> with no <code>email</code> sends
-					an empty <code>emailAddressHashed</code>.
+					The shape integrations use: everything, the address included, goes
+					in one array and no other argument is needed.
 				</div>
 				<div class="detail"></div>
 			</div>
@@ -330,8 +330,10 @@
 					<span class="badge">idle</span>a legacy call carries no fields key
 				</div>
 				<div class="what">
-					<code>setIdentity({email, name})</code> must produce the same body it
-					always did.
+					DXP signs users in with <code>setIdentity({email, name})</code>, so
+					that call has to keep producing exactly the body it always did.
+					This is backward compatibility, not a second option for an
+					integration to choose.
 				</div>
 				<div class="detail"></div>
 			</div>
@@ -704,12 +706,20 @@
 						setProbe('no-email', 'fail', 'Nothing was sent.');
 					}
 					else {
-						const hashed = captured[0].body.emailAddressHashed;
+						const body = captured[0].body;
+						const sent = (body.fields || []).map(
+							(field) => field.name
+						);
+
+						// The empty-hash check stays in the condition rather than
+						// the text: it proves the call needed no second argument.
 
 						setProbe(
 							'no-email',
-							hashed === '' ? 'pass' : 'fail',
-							'emailAddressHashed: ' + JSON.stringify(hashed)
+							sent.length && body.emailAddressHashed === ''
+								? 'pass'
+								: 'fail',
+							'sent [' + sent.join(', ') + '] and nothing else'
 						);
 					}
 				}

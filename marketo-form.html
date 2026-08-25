@@ -227,7 +227,9 @@
 			— same Marketo form id and field names, hidden campaign fields included.
 			The script is loaded as a plain <code>&lt;script&gt;</code> and left
 			entirely alone: it wires itself to <code>MktoForms2</code> and navigates
-			with <code>location.href</code>, exactly as it will on a customer page.
+			with <code>location.href</code> — calling
+			<code>Analytics.setIdentity({fields})</code> and nothing else — exactly
+			as it will on a customer page.
 			Submitting therefore performs a <strong>real navigation</strong>; the
 			harness comes back and reports what happened on the way out.
 		</p>
@@ -271,13 +273,12 @@
 			</div>
 			<div class="probe" data-probe="email-field" data-state="idle">
 				<div class="title">
-					<span class="badge">idle</span>the email travels inside
+					<span class="badge">idle</span>the identity is carried entirely by
 					<code>fields</code>
 				</div>
 				<div class="what">
-					The script passes no top-level <code>email</code>, so
-					<code>emailAddressHashed</code> goes out empty and the address
-					reaches the backend only as a field.
+					Everything the form collected, the address included, reaches the
+					backend as one array — there is no second channel to check.
 				</div>
 				<div class="detail"></div>
 			</div>
@@ -651,13 +652,16 @@
 					(field) => field.name === 'emailAddress'
 				);
 
+				// The absence check stays in the condition rather than the text:
+				// it proves nothing leaked into a second channel, which is worth
+				// asserting even though it is not what the probe is about.
+
 				setProbe(
 					'email-field',
 					emailField && !body.emailAddressHashed ? 'pass' : 'fail',
 					'fields.emailAddress: ' +
 						(emailField ? emailField.value : '(absent)') +
-						' · emailAddressHashed: ' +
-						JSON.stringify(body.emailAddressHashed)
+						' — and it is the only place the address appears'
 				);
 
 				const ordered =
@@ -724,9 +728,9 @@
 						trip.priorEmail +
 						', then submitted the form under a different address.';
 
-					// _getUserId only rotates when emailAddressHashed changes, and
-					// without a top-level email it is always empty. Report what
-					// actually happened rather than asserting either way.
+					// Report what happened rather than asserting either way: which
+					// of the two is correct is a product question, tracked on
+					// LPD-103564.
 
 					setProbe(
 						'scenario',
@@ -736,13 +740,12 @@
 								String(trip.userIdBefore).slice(0, 8) +
 								'… to ' +
 								String(userIdAfter).slice(0, 8) +
-								'…)'
+								'…), keeping the two people apart'
 							: 'the userId did NOT rotate — it stayed ' +
 								String(userIdAfter).slice(0, 8) +
-								'…') +
-							'. Rotation keys off emailAddressHashed, which this ' +
-							'script leaves empty, so the prior visitor and the form ' +
-							'submitter share one userId.'
+								'…, so the earlier visitor and the form submitter ' +
+								'share one') +
+							'. See LPD-103564.'
 					);
 
 					return;
@@ -762,12 +765,11 @@
 						left && emailValue ? 'pass' : 'fail',
 						'the anonymous userId ' +
 							String(trip.userIdBefore).slice(0, 8) +
-							'… was kept and carried into the identity, which ' +
-							'identifies the person through fields.emailAddress (' +
+							'… was kept and carried into the identity, which names ' +
+							'the person through fields.emailAddress (' +
 							(emailValue ? emailValue.value : '(absent)') +
-							'). emailAddressHashed stayed ' +
-							JSON.stringify(body.emailAddressHashed) +
-							' — the backend has to anchor on the field.'
+							') — so the browsing done before the form is not ' +
+							'orphaned from the person it turned out to be'
 					);
 
 					return;
