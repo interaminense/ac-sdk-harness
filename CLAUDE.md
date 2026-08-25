@@ -19,6 +19,7 @@ live SDK, drives it, and shows which analytics events fire.
 | `flush.html` | `Analytics.flush()` and the request-timeout behavior around it (LPD-103258). |
 | `set-identity-fields.html` | The optional `fields` array on `setIdentity()` and the identity dedup that hangs off it (LPD-103257). |
 | `cookie-domain.html` | The `cookieDomain` config and the anonymous id shared across sibling subdomains (LPD-102207). |
+| `cookie-domain-hop.html` | The same anonymous id across two hosts, walked through a link between them. |
 | `page-unloaded.html` | Which lifecycle event reports `pageUnloaded`, plus the back/forward cache cases (LPD-100223). |
 | `page-unloaded-away.html` | Navigation target for the round trip in `page-unloaded.html`; carries no SDK on purpose. |
 | `style.css` | Shared styles for `events-on-load.html`. |
