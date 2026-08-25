@@ -631,6 +631,16 @@
 
 				const names = (body.fields || []).map((field) => field.name);
 
+				// A client that predates the fields array drops it on the way
+				// out. Nothing the script did is wrong in that case, so these two
+				// have nothing to judge.
+
+				const carriesFields = 'fields' in body;
+
+				const notApplicable =
+					'this client drops the fields array, so there is nothing to ' +
+					'inspect — point ?sdk= at a newer build';
+
 				renderLog(bodies.length > 1 ? bodies : body);
 
 				setProbe(
@@ -654,7 +664,10 @@
 
 				setProbe(
 					'maps',
-					onlyMapped ? 'pass' : 'fail',
+					!carriesFields ? 'na' : onlyMapped ? 'pass' : 'fail',
+					!carriesFields
+						? notApplicable
+						:
 					'sent [' +
 						names.join(', ') +
 						'] out of ' +
@@ -672,26 +685,49 @@
 
 				setProbe(
 					'email-field',
-					emailField && !body.emailAddressHashed ? 'pass' : 'fail',
-					'fields.emailAddress: ' +
-						(emailField ? emailField.value : '(absent)') +
-						' — and it is the only place the address appears'
+					!carriesFields
+						? 'na'
+						: emailField && !body.emailAddressHashed
+							? 'pass'
+							: 'fail',
+					!carriesFields
+						? notApplicable
+						: 'fields.emailAddress: ' +
+							(emailField ? emailField.value : '(absent)') +
+							' — and it is the only place the address appears'
 				);
 
 				const ordered =
 					trip.requestAt && trip.departedAt >= trip.requestAt;
 
-				setProbe(
-					'order',
-					ordered ? 'pass' : 'fail',
-					trip.requestAt
-						? bodies.length +
-							' request(s) captured (event batches included); the ' +
-							'first left ' +
-							(trip.departedAt - trip.requestAt) +
-							'ms before the page did'
-						: 'no request was captured before the navigation'
-				);
+				if (!trip.hadFlush) {
+
+					// The script's documented fallback: on a client without
+					// flush() it navigates straight away and lets the queue
+					// deliver later. Nothing left before the page did, and that
+					// is correct rather than a failure.
+
+					setProbe(
+						'order',
+						'na',
+						'this client has no flush(), so the script navigated ' +
+							'immediately and left the identity queued — point ?sdk= ' +
+							'at a newer build to exercise the wait'
+					);
+				}
+				else {
+					setProbe(
+						'order',
+						ordered ? 'pass' : 'fail',
+						trip.requestAt
+							? bodies.length +
+								' request(s) captured (event batches included); the ' +
+								'first left ' +
+								(trip.departedAt - trip.requestAt) +
+								'ms before the page did'
+							: 'no request was captured before the navigation'
+					);
+				}
 
 				reportScenario(body);
 
@@ -753,7 +789,7 @@
 
 					setProbe(
 						'scenario',
-						left && hashMatches ? 'pass' : 'fail',
+						(left || !trip.hadFlush) && hashMatches ? 'pass' : 'fail',
 						'the sign in, which passed the address outside fields, ' +
 							'produced emailAddressHashed ' +
 							String(trip.signInHash).slice(0, 16) +
@@ -841,6 +877,48 @@
 				'ac_message_queue_identity',
 			];
 
+			// The published client may predate flush(). Trigger a send either
+			// way, then wait for the payload itself rather than for a promise
+			// that may not exist.
+
+			async function flushNow() {
+				if (typeof window.__ac.flush === 'function') {
+					await window.__ac.flush();
+
+					return;
+				}
+
+				if (window.__ac._queueFlushService) {
+					window.__ac._queueFlushService.flush();
+				}
+			}
+
+			function waitForSignInBody(timeoutMs) {
+				return new Promise((resolve) => {
+					const deadline = Date.now() + timeoutMs;
+
+					const tick = () => {
+						const record = JSON.parse(
+							localStorage.getItem(TRIP_KEY) || '{}'
+						);
+
+						const body = (record.identityBodies || []).find(
+							(candidate) => candidate.emailAddressHashed
+						);
+
+						if (body || Date.now() >= deadline) {
+							resolve(body || null);
+
+							return;
+						}
+
+						setTimeout(tick, 100);
+					};
+
+					tick();
+				});
+			}
+
 			async function runScenario(scenario) {
 				const values = readForm();
 
@@ -868,15 +946,9 @@
 
 					window.__ac.setIdentity({email: priorEmail});
 
-					await window.__ac.flush();
+					await flushNow();
 
-					const captured = JSON.parse(
-						localStorage.getItem(TRIP_KEY) || '{}'
-					);
-
-					const signInBody = (captured.identityBodies || []).find(
-						(body) => body.emailAddressHashed
-					);
+					const signInBody = await waitForSignInBody(6000);
 
 					signInHash = signInBody ? signInBody.emailAddressHashed : null;
 					expectedHash = await sha256Hex(priorEmail);
@@ -895,6 +967,7 @@
 				QUEUE_KEYS.forEach((key) => localStorage.setItem(key, '[]'));
 
 				updateTrip({
+					hadFlush: typeof window.__ac.flush === 'function',
 					priorEmail: priorEmail,
 					scenario: scenario,
 					startedAt: Date.now(),
@@ -997,13 +1070,43 @@
 				document
 					.getElementById(pair[0])
 					.addEventListener('click', function () {
-						runScenario(pair[1]);
+
+						// Without this a scenario that throws leaves every probe
+						// sitting at idle, which reads as the button doing nothing.
+
+						runScenario(pair[1]).catch(function (error) {
+							setVerdict(
+								'blocked',
+								'<b>The scenario stopped:</b> ' + error.message
+							);
+						});
 					});
 			});
 
 			document
 				.getElementById('offSite')
 				.addEventListener('click', runOffSite);
+
+			// Without this a run against a client that predates the release
+			// looks like the page is broken rather than like the client is old.
+
+			function describeClient() {
+				if (!window.__ac) {
+					return '';
+				}
+
+				if (typeof window.__ac.flush === 'function') {
+					return '';
+				}
+
+				return (
+					'This client predates <code>flush()</code> and the ' +
+					'<code>fields</code> array, so the script falls back to ' +
+					'navigating immediately and the mapped fields are dropped on ' +
+					'the way out. Point <code>?sdk=</code> at a newer build to see ' +
+					'the script do its job.'
+				);
+			}
 
 			renderLog(null);
 
@@ -1047,6 +1150,9 @@
 
 						return;
 					}
+
+					document.getElementById('sdkNote').innerHTML =
+						describeClient();
 
 					if (trip) {
 						reportTrip();

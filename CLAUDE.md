@@ -284,6 +284,20 @@ report *when* the redirect would have happened relative to the request. That
 ordering is the point of the whole script, so it is asserted on directly rather
 than inferred from a screenshot.
 
+**The harness must not depend on the feature it is testing.** The known-visitor
+scenario needs the sign in on the wire before the form submit, and calling
+`flush()` for that broke the page outright on the CDN, where the method does not
+exist: the scenario threw, no probe moved, and the button looked dead. It now
+triggers a send through whichever path the loaded client offers and waits for
+the captured payload instead of for a promise. Scenario failures also surface in
+the verdict — a rejected `runScenario` used to vanish.
+
+**A client too old for the feature yields `na`, not `fail`.** Without `flush()`
+the script navigates immediately, and without `fields` the array never reaches
+the wire. Both are the documented fallback, so `maps`, `email-field` and `order`
+report not-applicable and say which build would exercise them. Red should mean
+the script is wrong, never that the client is old.
+
 **The known-visitor scenario checks the hash, not just the rotation.** Its sign
 in passes the address the way DXP does — outside `fields` — and the probe
 computes `sha256(lowercase(email))` in the page and compares. That is the one
