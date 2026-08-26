@@ -1,0 +1,671 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta content="width=device-width, initial-scale=1.0" name="viewport" />
+
+		<title>Cookie domain — hop between hosts</title>
+
+		<style>
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				background: #f8fafc;
+				color: #0f172a;
+				font-family: system-ui, sans-serif;
+				line-height: 1.5;
+				margin: 0 auto;
+				max-width: 980px;
+				padding: 40px 24px 64px;
+			}
+			h1 {
+				font-size: 26px;
+				margin: 0 0 4px;
+			}
+			h2 {
+				font-size: 17px;
+				margin: 32px 0 10px;
+			}
+			.lede {
+				color: #475569;
+				margin: 0 0 24px;
+			}
+			a {
+				color: #1d4ed8;
+			}
+			code {
+				background: #e2e8f0;
+				border-radius: 4px;
+				font-size: 0.9em;
+				padding: 1px 5px;
+			}
+			.env {
+				background: #0f172a;
+				border-radius: 10px;
+				color: #e2e8f0;
+				font-family: ui-monospace, monospace;
+				font-size: 12.5px;
+				overflow-x: auto;
+				padding: 16px 20px;
+			}
+			.env .k {
+				color: #93c5fd;
+				display: inline-block;
+				min-width: 150px;
+			}
+			.env .v {
+				color: #86efac;
+				word-break: break-all;
+			}
+			.verdict {
+				border-radius: 10px;
+				font-size: 14px;
+				margin: 18px 0 0;
+				padding: 14px 18px;
+			}
+			.verdict.pending {
+				background: #f1f5f9;
+				border: 1px solid #cbd5e1;
+				color: #475569;
+			}
+			.verdict.supported {
+				background: #ecfdf5;
+				border: 1px solid #6ee7b7;
+				color: #065f46;
+			}
+			.verdict.missing {
+				background: #fffbeb;
+				border: 1px solid #fcd34d;
+				color: #92400e;
+			}
+			.verdict.blocked {
+				background: #fef2f2;
+				border: 1px solid #fca5a5;
+				color: #991b1b;
+			}
+			button {
+				background: #1d4ed8;
+				border: 0;
+				border-radius: 7px;
+				color: #fff;
+				cursor: pointer;
+				font-size: 14px;
+				font-weight: 600;
+				padding: 9px 18px;
+			}
+			button:disabled {
+				background: #94a3b8;
+				cursor: not-allowed;
+			}
+			button.ghost {
+				background: #fff;
+				border: 1px solid #cbd5e1;
+				color: #0f172a;
+			}
+			.probe {
+				background: #fff;
+				border: 1px solid #e2e8f0;
+				border-left-width: 4px;
+				border-radius: 8px;
+				margin-bottom: 10px;
+				padding: 12px 16px;
+			}
+			.probe[data-state='pass'] {
+				border-left-color: #10b981;
+			}
+			.probe[data-state='fail'] {
+				border-left-color: #ef4444;
+			}
+			.probe[data-state='na'] {
+				border-left-color: #cbd5e1;
+				opacity: 0.65;
+			}
+			.probe[data-state='running'] {
+				border-left-color: #f59e0b;
+			}
+			.probe[data-state='idle'] {
+				border-left-color: #e2e8f0;
+			}
+			.probe .title {
+				font-size: 14px;
+				font-weight: 600;
+			}
+			.probe .title .badge {
+				border-radius: 999px;
+				font-size: 10.5px;
+				font-weight: 700;
+				margin-right: 8px;
+				padding: 2px 8px;
+				text-transform: uppercase;
+			}
+			.probe[data-state='pass'] .badge {
+				background: #d1fae5;
+				color: #065f46;
+			}
+			.probe[data-state='fail'] .badge {
+				background: #fee2e2;
+				color: #991b1b;
+			}
+			.probe[data-state='na'] .badge,
+			.probe[data-state='idle'] .badge {
+				background: #e2e8f0;
+				color: #475569;
+			}
+			.probe[data-state='running'] .badge {
+				background: #fef3c7;
+				color: #92400e;
+			}
+			.probe .what {
+				color: #475569;
+				font-size: 13px;
+				margin-top: 3px;
+			}
+			.probe .detail {
+				color: #0f172a;
+				font-family: ui-monospace, monospace;
+				font-size: 12px;
+				margin-top: 7px;
+				white-space: pre-wrap;
+				word-break: break-all;
+			}
+			form.manual {
+				background: #fff;
+				border: 1px solid #e2e8f0;
+				border-radius: 8px;
+				display: grid;
+				gap: 10px 14px;
+				grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+				padding: 16px 18px;
+			}
+			form.manual label {
+				display: block;
+				font-size: 12px;
+				font-weight: 600;
+			}
+			form.manual input {
+				border: 1px solid #cbd5e1;
+				border-radius: 6px;
+				font-size: 13px;
+				margin-top: 3px;
+				padding: 7px 9px;
+				width: 100%;
+			}
+			form.manual .actions {
+				align-items: end;
+				display: flex;
+				gap: 10px;
+				grid-column: 1 / -1;
+			}
+			form.manual .hint {
+				color: #64748b;
+				font-size: 12px;
+			}
+			.log {
+				background: #0f172a;
+				border-radius: 10px;
+				color: #e2e8f0;
+				font-family: ui-monospace, monospace;
+				font-size: 12px;
+				max-height: 460px;
+				overflow: auto;
+				padding: 14px 18px;
+			}
+			.log .entry {
+				border-bottom: 1px solid #1e293b;
+				padding: 8px 0;
+			}
+			.log .entry:last-child {
+				border-bottom: 0;
+			}
+			.log .when {
+				color: #94a3b8;
+			}
+			.log .who {
+				color: #fbbf24;
+			}
+			.log pre {
+				margin: 5px 0 0;
+				white-space: pre-wrap;
+				word-break: break-all;
+			}
+			.log .key {
+				color: #93c5fd;
+			}
+			.empty {
+				color: #64748b;
+			}
+			.note {
+				color: #64748b;
+				font-size: 13px;
+			}
+			.state {
+				background: #0f172a;
+				border-radius: 10px;
+				color: #e2e8f0;
+				font-family: ui-monospace, monospace;
+				font-size: 12.5px;
+				margin: 18px 0;
+				overflow-x: auto;
+				padding: 16px 18px;
+				white-space: pre;
+			}
+			.hop {
+				background: #1d4ed8;
+				border-radius: 8px;
+				color: #fff;
+				display: inline-block;
+				font-size: 16px;
+				font-weight: 700;
+				padding: 12px 20px;
+				text-decoration: none;
+			}
+			.hop:hover {
+				background: #1e40af;
+			}
+		</style>
+	</head>
+
+	<body>
+		<h1>Cookie domain — hop between hosts</h1>
+		<p class="lede">
+			Two hosts that share a parent domain, one link between them. Host A
+			establishes the anonymous <code>ac_client_user_id</code>; follow the
+			link to host B and the id should be the same one — carried by the
+			cookie, not by the link. That holds whether host B is new or already
+			had an id of its own, because the shared cookie is what decides. Load a different
+			build with <code>?sdk=&lt;url&gt;</code>; <code>?sdk=local</code>
+			resolves to <code>./local/analytics-all-min.js</code>.
+		</p>
+
+		<div class="env" id="env"></div>
+
+		<div class="verdict pending" id="verdict">Waiting for the SDK to load…</div>
+
+		<h2>This host</h2>
+		<div class="state" id="live"></div>
+
+		<h2>Hop</h2>
+		<p class="note" id="hopNote"></p>
+		<p>
+			<a class="hop" id="hop" href="#">Go to the other host</a>
+		</p>
+		<p>
+			<button class="ghost" id="ownId">
+				Give this host an id of its own
+			</button>
+			<button class="ghost" id="reset">
+				Start over: clear both hosts' ids
+			</button>
+		</p>
+
+		<h2>How to read it</h2>
+		<ol>
+			<li>
+				On host A, hit <b>Start over</b>. The id is minted here and written
+				to the cookie at the shared domain.
+			</li>
+			<li>
+				Follow the link. Host B has its own storage and has never been
+				visited, so it has no id of its own.
+			</li>
+			<li>
+				Host B reports <b>adopted</b> and shows the same id. The link
+				carries the expected value only so this page can compare the two —
+				the SDK never reads it.
+			</li>
+			<li>
+				Now hit <b>Give this host an id of its own</b> to stage the visitor
+				who was already known here before the cookie existed. On the reload
+				the id is <b>replaced</b>: the shared cookie decides, and the client
+				reports the identity again under the id it settled on.
+			</li>
+		</ol>
+
+		<p class="note">
+			<b>minted</b> — nothing was there to take. <b>adopted</b> — this host
+			had no id and took the shared one. <b>replaced</b> — it had one and
+			gave way. <b>kept</b> — it already held that very id. An identified
+			visit is the one case that keeps its own id, since it is stitched by
+			its email hash downstream.
+		</p>
+
+		<script>
+			// Same shape liferay.com uses: point a <script> at the SDK, then
+			// Analytics.create(config) once it loads. Requests are REAL — they are
+			// queued and flushed to endpointUrl.
+
+			const DEV_CDN_URL = 'https://analytics-js-dev-cdn.liferay.com';
+			const LOCAL_URL = './local/analytics-all-min.js';
+
+			const params = new URLSearchParams(location.search);
+			const requestedSDK = params.get('sdk');
+
+			const SDK_URL =
+				requestedSDK === 'local'
+					? LOCAL_URL
+					: requestedSDK || DEV_CDN_URL;
+
+			const CONFIG = {
+				channelId: '831904237734003774',
+				dataSourceId: '820802606605225785',
+				endpointUrl: 'https://osbasahpublisher-ac-internal.lfr.cloud',
+				projectId: 'asah59dbaa580b264c578bb15c878dd363f0',
+			};
+
+			const COOKIE_NAME = 'ac_client_user_id';
+			const SEEN_KEY = 'harness_hop_seen';
+			const EXPIRED = 'Thu, 01 Jan 1970 00:00:00 GMT';
+
+			// The parent this host shares with its sibling. Everything under
+			// *.localhost is resolved by the browser and counts as a secure
+			// context, so a Secure cookie lands over plain HTTP with no flags.
+
+			const HOST = location.hostname;
+			const PARENT =
+				params.get('domain') ||
+				(HOST.indexOf('.') === -1
+					? HOST
+					: HOST.slice(HOST.indexOf('.') + 1));
+
+			// The sibling to hop to. With a.<parent> the other side is b.<parent>,
+			// and vice versa; anything else falls back to a.<parent>.
+
+			const LABEL = HOST.slice(0, HOST.indexOf('.'));
+			const OTHER_LABEL = LABEL === 'a' ? 'b' : 'a';
+			const OTHER_HOST = OTHER_LABEL + '.' + PARENT;
+
+			const expected = params.get('expect');
+
+			function readCookies() {
+				return document.cookie
+					.split('; ')
+					.filter((cookie) => cookie.startsWith(COOKIE_NAME + '='))
+					.map((cookie) => cookie.slice(COOKIE_NAME.length + 1));
+			}
+
+			function readStoredId() {
+				try {
+					return JSON.parse(localStorage.getItem(COOKIE_NAME));
+				}
+				catch (error) {
+					return null;
+				}
+			}
+
+			// Snapshot before the SDK runs, so the id it settles on can be
+			// attributed: kept, adopted from the shared cookie, or freshly minted.
+
+			const BEFORE = {
+				cookies: readCookies(),
+				seen: localStorage.getItem(SEEN_KEY) === 'yes',
+				stored: readStoredId(),
+			};
+
+			function classify(id) {
+				const fromCookie = BEFORE.cookies.indexOf(id) !== -1;
+
+				if (fromCookie && BEFORE.stored && BEFORE.stored !== id) {
+					return [
+						'replaced',
+						'this host held ' +
+							BEFORE.stored +
+							', and gave way to the cookie shared at ' +
+							PARENT,
+					];
+				}
+
+				if (fromCookie && !BEFORE.stored) {
+					return [
+						'adopted',
+						'taken from the cookie shared at ' + PARENT,
+					];
+				}
+
+				if (BEFORE.stored === id) {
+					return ['kept', 'this host already held this id'];
+				}
+
+				return ['minted', 'nothing to take, so a new id was created'];
+			}
+
+			function setVerdict(state, html) {
+				const verdict = document.getElementById('verdict');
+
+				verdict.className = 'verdict ' + state;
+				verdict.innerHTML = html;
+			}
+
+			function render(id, origin, reason) {
+				document.getElementById('live').textContent = [
+					'host                 ' + HOST,
+					'shared domain        ' + PARENT,
+					'first visit here     ' + (BEFORE.seen ? 'no' : 'yes'),
+					'id before the SDK    ' + (BEFORE.stored || '(none)'),
+					'cookie before        ' +
+						(BEFORE.cookies.join(', ') || '(none)'),
+					'',
+					'user id              ' + id,
+					'where it came from   ' + origin + ' — ' + reason,
+				].join('\n');
+
+				const hop = document.getElementById('hop');
+				const target = new URLSearchParams();
+
+				if (requestedSDK) {
+					target.set('sdk', requestedSDK);
+				}
+
+				if (params.get('domain')) {
+					target.set('domain', params.get('domain'));
+				}
+
+				target.set('expect', id);
+
+				hop.href =
+					location.protocol +
+					'//' +
+					OTHER_HOST +
+					(location.port ? ':' + location.port : '') +
+					location.pathname +
+					'?' +
+					target.toString();
+				hop.textContent = 'Go to ' + OTHER_HOST + ' →';
+
+				document.getElementById('hopNote').textContent =
+					'The link carries expect=' +
+					id +
+					' so the other side can compare. The SDK never reads it — the id itself travels in the cookie.';
+			}
+
+			// Stages the case the shared cookie exists to settle: this host holds
+			// an id from before the cookie was ever written, and the two differ.
+
+			document.getElementById('ownId').onclick = () => {
+				localStorage.setItem(
+					COOKIE_NAME,
+					JSON.stringify(
+						'own-id-' + Math.random().toString(36).slice(2, 10)
+					)
+				);
+
+				location.reload();
+			};
+
+			document.getElementById('reset').onclick = () => {
+				localStorage.removeItem(COOKIE_NAME);
+				localStorage.removeItem(SEEN_KEY);
+
+				document.cookie =
+					COOKIE_NAME + '=; expires=' + EXPIRED + '; path=/';
+				document.cookie =
+					COOKIE_NAME +
+					'=; domain=' +
+					PARENT +
+					'; expires=' +
+					EXPIRED +
+					'; path=/';
+
+				// Only this host's storage can be cleared from here, so send the
+				// reset through the sibling as well before coming back.
+
+				location.href =
+					location.protocol +
+					'//' +
+					OTHER_HOST +
+					(location.port ? ':' + location.port : '') +
+					location.pathname +
+					'?' +
+					new URLSearchParams(
+						Object.assign(
+							{},
+							requestedSDK ? {sdk: requestedSDK} : {},
+							params.get('domain')
+								? {domain: params.get('domain')}
+								: {},
+							{reset: 'return'}
+						)
+					).toString();
+			};
+
+			document.getElementById('env').innerHTML =
+				'<div><span class="k">SDK URL</span><span class="v">' +
+				SDK_URL +
+				'</span></div><div><span class="k">shared domain</span><span class="v">' +
+				PARENT +
+				'</span></div><div><span class="k">sibling</span><span class="v">' +
+				OTHER_HOST +
+				'</span></div>';
+
+			const sdk = document.createElement('script');
+
+			sdk.src = SDK_URL;
+
+			sdk.onload = () => {
+				// Arriving on the second leg of a reset: wipe this host too, then
+				// go back with a clean slate on both sides.
+
+				if (params.get('reset') === 'return') {
+					localStorage.removeItem(COOKIE_NAME);
+					localStorage.removeItem(SEEN_KEY);
+
+					document.cookie =
+						COOKIE_NAME + '=; expires=' + EXPIRED + '; path=/';
+					document.cookie =
+						COOKIE_NAME +
+						'=; domain=' +
+						PARENT +
+						'; expires=' +
+						EXPIRED +
+						'; path=/';
+
+					const back = new URLSearchParams();
+
+					if (requestedSDK) {
+						back.set('sdk', requestedSDK);
+					}
+
+					if (params.get('domain')) {
+						back.set('domain', params.get('domain'));
+					}
+
+					location.href =
+						location.protocol +
+						'//' +
+						OTHER_HOST +
+						(location.port ? ':' + location.port : '') +
+						location.pathname +
+						(back.toString() ? '?' + back.toString() : '');
+
+					return;
+				}
+
+				window.__ac = Analytics.create(
+					Object.assign({}, CONFIG, {cookieDomain: PARENT})
+				);
+
+				window.__ac.send('pageViewed', 'Page', {
+					externalReferenceCode: 'harness-cookie-domain-hop',
+				});
+
+				const id = window.__ac._getUserId();
+				const [origin, reason] = classify(id);
+
+				localStorage.setItem(SEEN_KEY, 'yes');
+
+				render(id, origin, reason);
+
+				if (typeof window.__ac._getCookieDomain !== 'function') {
+					setVerdict(
+						'missing',
+						'This build (version ' +
+							(window.__ac.version || 'unknown') +
+							') has no <code>cookieDomain</code> support, so every host mints its own id. Point <code>?sdk=</code> at a build that carries it.'
+					);
+
+					return;
+				}
+
+				if (!expected) {
+					setVerdict(
+						'pending',
+						'Id on <b>' +
+							HOST +
+							'</b> is <code>' +
+							id +
+							'</code> (' +
+							origin +
+							'). Follow the link to ' +
+							OTHER_HOST +
+							' to see whether it travels.'
+					);
+				}
+				else if (expected === id) {
+					const how = {
+						adopted:
+							'this host had no id of its own and took the shared one.',
+						kept: 'this host already held that same id.',
+						minted:
+							'though it was minted here rather than taken, which should not happen with a shared cookie in place.',
+						replaced:
+							'this host held an id of its own and gave way to the shared one.',
+					};
+
+					setVerdict(
+						'supported',
+						'<b>Same id across both hosts.</b> ' +
+							HOST +
+							' reports <code>' +
+							id +
+							'</code>, the id established on ' +
+							OTHER_HOST +
+							' — ' +
+							(how[origin] || '')
+					);
+				}
+				else {
+					setVerdict(
+						'missing',
+						'<b>Different ids.</b> ' +
+							OTHER_HOST +
+							' had <code>' +
+							expected +
+							'</code>, this host reports <code>' +
+							id +
+							'</code> (' +
+							origin +
+							'). ' +
+							'With the shared cookie deciding, the only expected reason is an identified visit, which keeps its own id on purpose. Otherwise the cookie never reached this host.'
+					);
+				}
+			};
+
+			sdk.onerror = () => {
+				setVerdict('blocked', '<b>SDK failed to load</b> — ' + SDK_URL);
+			};
+
+			document.head.appendChild(sdk);
+		</script>
+
+	</body>
+</html>

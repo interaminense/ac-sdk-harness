@@ -21,6 +21,7 @@ Interactive, in-browser test harness for Liferay's Analytics Cloud client SDK
 | [`flush-away.html`](flush-away.html) | Navigation target for the `flush.html` round trips; carries no SDK on purpose. |
 | [`set-identity-fields.html`](set-identity-fields.html) | The optional `fields` array on `setIdentity()` (LPD-103257). Shows the exact `/identity` request body on the wire and probes the normalization and dedup rules that hang off it. |
 | [`cookie-domain.html`](cookie-domain.html) | The anonymous id shared across sibling subdomains (LPD-102207). Probes the domain-scoped cookie write, the retirement of the host-only cookie an earlier build left behind, and the rules around an id established on another host, which the shared cookie settles. Takes `?domain=` alongside `?sdk=`. |
+| [`cookie-domain-hop.html`](cookie-domain-hop.html) | The shared id proven across two hosts by following a link. Reports whether the id on each side was minted, adopted from the shared cookie, or replaced by it, and compares the two. Needs two names under one parent, e.g. `a.test.localhost` and `b.test.localhost`. |
 | [`page-unloaded.html`](page-unloaded.html) | Which lifecycle event the build uses to report `pageUnloaded` (`unload` or `pagehide`), plus the back/forward cache cases the move to `pagehide` opens up. |
 
 ## How the SDK is loaded
