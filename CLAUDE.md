@@ -18,6 +18,7 @@ live SDK, drives it, and shows which analytics events fire.
 | `marketo-integration.js` | Committed copy of the script published on the Confluence guide, so the harness has something to load. |
 | `flush.html` | `Analytics.flush()` and the request-timeout behavior around it (LPD-103258). |
 | `set-identity-fields.html` | The optional `fields` array on `setIdentity()` and the identity dedup that hangs off it (LPD-103257). |
+| `cookie-domain.html` | The `cookieDomain` config and the anonymous id shared across sibling subdomains (LPD-102207). |
 | `page-unloaded.html` | Which lifecycle event reports `pageUnloaded`, plus the back/forward cache cases (LPD-100223). |
 | `page-unloaded-away.html` | Navigation target for the round trip in `page-unloaded.html`; carries no SDK on purpose. |
 | `style.css` | Shared styles for `events-on-load.html`. |
@@ -56,6 +57,8 @@ loop drains between ticks — usually the last event a run fires. When mirroring
 normalize the properties the way `track()` does (default to `{}`, strip
 `assetType`) or the log's dedupe key will not match the polled one.
 Each page clears its `ac_*` `localStorage` keys on load for a clean slate.
+The `cookie-domain*` pages are the exception: arriving with an id already set
+is the case they exist to show, so they clear on demand instead.
 
 ## Where the SDK source lives
 
