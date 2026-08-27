@@ -20,6 +20,7 @@ Interactive, in-browser test harness for Liferay's Analytics Cloud client SDK
 | [`flush.html`](flush.html) | `Analytics.flush()` (LPD-103258). Sends the queue on demand and times how long the Promise takes to settle, including against a deliberately stalled endpoint. |
 | [`flush-away.html`](flush-away.html) | Navigation target for the `flush.html` round trips; carries no SDK on purpose. |
 | [`set-identity-fields.html`](set-identity-fields.html) | The optional `fields` array on `setIdentity()` (LPD-103257). Shows the exact `/identity` request body on the wire and probes the normalization and dedup rules that hang off it. |
+| [`cookie-domain.html`](cookie-domain.html) | The anonymous user id cookie shared across sibling subdomains (LPD-102209). Probes the adoption, publishing and legacy-cookie rules, and reports which id wins when a host has one of its own. |
 | [`page-unloaded.html`](page-unloaded.html) | Which lifecycle event the build uses to report `pageUnloaded` (`unload` or `pagehide`), plus the back/forward cache cases the move to `pagehide` opens up. |
 
 ## How the SDK is loaded
@@ -87,6 +88,37 @@ Three behaviors are worth knowing when reading the probes:
   the email **both** top level (it becomes `emailAddressHashed`, the individual
   anchor) and inside `fields` as `emailAddress` (the hash is one way, so the
   plaintext is what populates the Individual's column).
+
+## The user id shared across subdomains
+
+`cookie-domain.html` covers LPD-102209, which adds an optional `cookieDomain` to
+the client config. When the server computes one — with the same
+`CookiesManager.getDomain()` that already scopes Liferay's session cookie — the
+client writes `ac_client_user_id` at that domain rather than at the exact host,
+so `liferay.com` and `learn.liferay.com` answer with one anonymous id and a
+visitor's journey reads as one.
+
+The page detects support rather than assuming it, so it is correct on both sides
+of the release: against the dev CDN it reports that the build ignores the field
+and marks the sharing probes not applicable, and it goes green against a build
+carrying the change.
+
+Two things are worth knowing when reading the probes:
+
+- **A single host is enough to drive the client's decision.** A cookie a sibling
+  subdomain published is indistinguishable from one this page wrote with the same
+  `domain=` — that is the sharing mechanism, not a shortcut around it. What one
+  host cannot show is the browser handing the cookie over, so the page also
+  explains how to reach it through two `*.localhost` names, which need no
+  `/etc/hosts` entry and count as a secure context.
+- **The page does not clear `ac_*` on load**, unlike every other page here. What
+  survives a load is exactly what is under test, and wiping would delete the id
+  the sibling just published.
+
+The probe named **which id wins** reports rather than asserts. When a host has
+its own id and finds a different shared one, the branch converges on the shared
+id while the story asks for the local one to be kept permanently. Until that is
+settled on the ticket, the page names whichever answer the loaded build gives.
 
 ## flush() and the sequential-queue ceiling
 

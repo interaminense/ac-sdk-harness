@@ -184,6 +184,20 @@
 			</p>
 		</a>
 
+		<a class="card" href="cookie-domain.html">
+			<h2>Cookie domain <span class="tag">LPD-102209</span></h2>
+			<p>
+				The anonymous user id cookie shared across sibling subdomains. Probes
+				that the id is published at the configured domain rather than at this
+				host, that a host with no id of its own adopts the shared one, that a
+				previous version's host-only cookie is retired instead of coexisting,
+				and that an identified visitor is left alone. Reports which id wins
+				when both exist, because the story and the branch disagree there.
+				Reach it through two <code>*.localhost</code> names to watch a real
+				second host adopt the id.
+			</p>
+		</a>
+
 		<div class="config">
 			<h3>Configuration (Analytics Cloud dev)</h3>
 			<div><span class="k">SDK URL</span>&nbsp;&nbsp;<span class="v">https://analytics-js-dev-cdn.liferay.com</span></div>
@@ -196,7 +210,8 @@
 		<p class="note">
 			The live checklist / log on each page polls the SDK's own event queue
 			via <code>getEvents()</code>. Each page clears its <code>ac_*</code>
-			<code>localStorage</code> keys on load so every run starts clean.
+			<code>localStorage</code> keys on load so every run starts clean — except
+			<b>Cookie domain</b>, where what survives a load is the thing under test.
 		</p>
 	</body>
 </html>

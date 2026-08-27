@@ -18,6 +18,7 @@ live SDK, drives it, and shows which analytics events fire.
 | `marketo-integration.js` | Committed copy of the script published on the Confluence guide, so the harness has something to load. |
 | `flush.html` | `Analytics.flush()` and the request-timeout behavior around it (LPD-103258). |
 | `set-identity-fields.html` | The optional `fields` array on `setIdentity()` and the identity dedup that hangs off it (LPD-103257). |
+| `cookie-domain.html` | The anonymous user id cookie shared across sibling subdomains (LPD-102209). |
 | `page-unloaded.html` | Which lifecycle event reports `pageUnloaded`, plus the back/forward cache cases (LPD-100223). |
 | `page-unloaded-away.html` | Navigation target for the round trip in `page-unloaded.html`; carries no SDK on purpose. |
 | `style.css` | Shared styles for `events-on-load.html`. |
@@ -55,7 +56,9 @@ shadowing it on the instance, because polling alone loses whatever the flush
 loop drains between ticks — usually the last event a run fires. When mirroring,
 normalize the properties the way `track()` does (default to `{}`, strip
 `assetType`) or the log's dedupe key will not match the polled one.
-Each page clears its `ac_*` `localStorage` keys on load for a clean slate.
+Each page clears its `ac_*` `localStorage` keys on load for a clean slate —
+except `cookie-domain.html`, where what survives a load is precisely what is
+under test.
 
 ## Where the SDK source lives
 
@@ -185,6 +188,75 @@ Probes that assert **nothing** was sent have to outwait the identity queue,
 which flushes every 2s — hence `WAIT_MS = 3 * FLUSH_INTERVAL` and a full run
 taking about half a minute. Shortening that wait turns those probes into false
 passes.
+
+## The shared cookie domain and the dev CDN
+
+LPD-102209 adds an optional `cookieDomain` to the client config. When the server
+computes one — it uses `CookiesManager.getDomain()`, which resolves the
+registrable domain — the client writes `ac_client_user_id` at that domain
+instead of at the exact host, so every sibling subdomain answers with one
+anonymous id.
+
+`cookie-domain.html` detects support instead of assuming it, so it is correct on
+both sides of the release: today it reports "build has no cookieDomain support"
+against the dev CDN and goes green against a local build. Detection asks whether
+`_resolveCookieDomain` exists on the instance rather than reading
+`config.cookieDomain` back, because `create()` assigns onto the config object it
+is handed — an older build returns the configured value untouched, so a valid
+domain looks identical on both. The behavioral proof lives in the `invalid`
+probe, where wiping state is free.
+
+Four things about the page are load-bearing:
+
+- **It does not clear `ac_*` on load.** Every other page does. Here what survives
+  a load *is* the thing under test, and expiring the cookie on load would delete
+  the id a sibling subdomain just published — making the two-host check
+  impossible to perform at all. Each probe seeds its own state instead, and the
+  buttons under **State** are the explicit way to clear.
+- **A cookie is identified by its domain as well as its name, and
+  `document.cookie` exposes no attributes.** Counting entries is the only way to
+  tell a host-scoped cookie from a shared one, and expiring the host-only variant
+  — writing with no `domain=` — is the only way to prove a cookie carries a
+  `Domain` attribute. Both tricks come from the PR's own Jest suite.
+- **The SDK stores `localStorage` through `JSON.stringify` and the cookie raw.**
+  Seeding or reading one the way the other is handled compares a quoted string
+  against an unquoted one and fails every probe for a reason that has nothing to
+  do with the SDK.
+- **`create()` assigns onto the config object it is given**, so a resolved
+  `cookieDomain` would leak from one probe into the next. Every create gets a
+  fresh copy.
+
+**A single host is enough to drive the adoption logic.** From the client's point
+of view a cookie a sibling published is indistinguishable from one the page
+wrote itself with the same `domain=` — that *is* the sharing mechanism, and it is
+how the PR's Jest suite models it. What one host cannot prove is the browser
+handing the cookie to a second host; reaching the page through two
+`*.localhost` names does that, and was verified to agree with what the probes
+report. Any `*.localhost` name resolves to loopback with no `/etc/hosts` entry
+and counts as a secure context, which matters because the cookie is marked
+`Secure`.
+
+**The `conflict` probe reports rather than asserts.** When a host has its own id
+*and* finds a different shared one, the branch converges on the shared id
+(`shared-cookie-wins`) while the story LPD-102207 asks for the opposite ("a
+subdomain that already has its own anonymous id keeps it permanently"). The probe
+names whichever semantics the loaded build has and quotes the story next to it,
+so it stays correct however the ticket is settled. Do not turn it into a pass/fail
+assertion until that decision is made.
+
+**A client too old for the feature yields `na`, not `fail`.** Only the first two
+probes — the cookie stays host-scoped, a shared id is ignored — mean anything on
+a build without `cookieDomain`, because they assert the behavior it has to keep.
+The rest are not merely unprovable there: `identified` and `rotation` would pass
+*by accident*, since writing the cookie at this exact host happens to satisfy
+their assertions for the wrong reason. A false pass is worse than a red row.
+
+**What the page deliberately does not cover**, and says so: a `cookieDomain` that
+is a public suffix carrying a dot (`github.io`, `co.uk`). The client rejects a
+domain with no dot but accepts those, and the browser then refuses the write —
+leaving the visitor with no cookie at all, since `_ensureIntegrity` has already
+retired the host-only one. Reaching that case needs a host under a multi-label
+public suffix, which neither `interaminense.dev` nor `*.localhost` is.
 
 ## flush() and the dev CDN
 

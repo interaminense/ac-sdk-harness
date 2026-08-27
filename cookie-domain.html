@@ -1,0 +1,1164 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta content="width=device-width, initial-scale=1.0" name="viewport" />
+
+		<title>ac-sdk-harness — cookie domain</title>
+
+		<style>
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				background: #f8fafc;
+				color: #0f172a;
+				font-family: system-ui, sans-serif;
+				line-height: 1.5;
+				margin: 0 auto;
+				max-width: 980px;
+				padding: 40px 24px 64px;
+			}
+			h1 {
+				font-size: 26px;
+				margin: 0 0 4px;
+			}
+			h2 {
+				font-size: 17px;
+				margin: 32px 0 10px;
+			}
+			.lede {
+				color: #475569;
+				margin: 0 0 24px;
+			}
+			a {
+				color: #1d4ed8;
+			}
+			code {
+				background: #e2e8f0;
+				border-radius: 4px;
+				font-size: 0.9em;
+				padding: 1px 5px;
+			}
+			.env {
+				background: #0f172a;
+				border-radius: 10px;
+				color: #e2e8f0;
+				font-family: ui-monospace, monospace;
+				font-size: 12.5px;
+				overflow-x: auto;
+				padding: 16px 20px;
+			}
+			.env .k {
+				color: #93c5fd;
+				display: inline-block;
+				min-width: 190px;
+			}
+			.env .v {
+				color: #86efac;
+				word-break: break-all;
+			}
+			.env .v.none {
+				color: #64748b;
+			}
+			.verdict {
+				border-radius: 10px;
+				font-size: 14px;
+				margin: 18px 0 0;
+				padding: 14px 18px;
+			}
+			.verdict.pending {
+				background: #f1f5f9;
+				border: 1px solid #cbd5e1;
+				color: #475569;
+			}
+			.verdict.supported {
+				background: #ecfdf5;
+				border: 1px solid #6ee7b7;
+				color: #065f46;
+			}
+			.verdict.missing {
+				background: #fffbeb;
+				border: 1px solid #fcd34d;
+				color: #92400e;
+			}
+			.verdict.blocked {
+				background: #fef2f2;
+				border: 1px solid #fca5a5;
+				color: #991b1b;
+			}
+			button {
+				background: #1d4ed8;
+				border: 0;
+				border-radius: 7px;
+				color: #fff;
+				cursor: pointer;
+				font-size: 14px;
+				font-weight: 600;
+				padding: 9px 18px;
+			}
+			button:disabled {
+				background: #94a3b8;
+				cursor: not-allowed;
+			}
+			button.ghost {
+				background: #fff;
+				border: 1px solid #cbd5e1;
+				color: #0f172a;
+			}
+			.probe {
+				background: #fff;
+				border: 1px solid #e2e8f0;
+				border-left-width: 4px;
+				border-radius: 8px;
+				margin-bottom: 10px;
+				padding: 12px 16px;
+			}
+			.probe[data-state='pass'] {
+				border-left-color: #10b981;
+			}
+			.probe[data-state='fail'] {
+				border-left-color: #ef4444;
+			}
+			.probe[data-state='na'] {
+				border-left-color: #cbd5e1;
+				opacity: 0.65;
+			}
+			.probe[data-state='running'] {
+				border-left-color: #f59e0b;
+			}
+			.probe[data-state='idle'] {
+				border-left-color: #e2e8f0;
+			}
+			.probe .title {
+				font-size: 14px;
+				font-weight: 600;
+			}
+			.probe .title .badge {
+				border-radius: 999px;
+				font-size: 10.5px;
+				font-weight: 700;
+				margin-right: 8px;
+				padding: 2px 8px;
+				text-transform: uppercase;
+			}
+			.probe[data-state='pass'] .badge {
+				background: #d1fae5;
+				color: #065f46;
+			}
+			.probe[data-state='fail'] .badge {
+				background: #fee2e2;
+				color: #991b1b;
+			}
+			.probe[data-state='na'] .badge,
+			.probe[data-state='idle'] .badge {
+				background: #e2e8f0;
+				color: #475569;
+			}
+			.probe[data-state='running'] .badge {
+				background: #fef3c7;
+				color: #92400e;
+			}
+			.probe .what {
+				color: #475569;
+				font-size: 13px;
+				margin-top: 3px;
+			}
+			.probe .detail {
+				color: #0f172a;
+				font-family: ui-monospace, monospace;
+				font-size: 12px;
+				margin-top: 7px;
+				white-space: pre-wrap;
+				word-break: break-all;
+			}
+			.controls {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 10px;
+			}
+			.note {
+				color: #64748b;
+				font-size: 13px;
+			}
+			ol.expect {
+				color: #475569;
+				font-size: 13.5px;
+				padding-left: 20px;
+			}
+			ol.expect li {
+				margin-bottom: 7px;
+			}
+		</style>
+	</head>
+
+	<body>
+		<h1>Cookie domain</h1>
+		<p class="lede">
+			Drives the anonymous user id cookie shared across sibling subdomains
+			(LPD-102209). The client takes a <code>cookieDomain</code> the server
+			computes per request and, when it holds one, writes
+			<code>ac_client_user_id</code> at that domain instead of at this exact
+			host — so every host under it answers with one id. Load a different build
+			with <code>?sdk=&lt;url&gt;</code> (<code>?sdk=local</code> resolves to
+			<code>./local/analytics-all-min.js</code>) and override the domain under
+			test with <code>?cookieDomain=&lt;domain&gt;</code>.
+		</p>
+
+		<div class="env" id="env"></div>
+
+		<div class="verdict pending" id="verdict">
+			Waiting for the SDK to load…
+		</div>
+
+		<h2>Probes</h2>
+		<p class="note">
+			Each probe seeds a starting state, then disposes and re-creates the
+			client — the same path DXP takes on an SPA navigation, so the client
+			re-runs <code>_ensureIntegrity()</code> and re-reads the cookie exactly as
+			it would on a page load. A cookie written by a sibling subdomain is
+			indistinguishable from one written here with the same
+			<code>domain=</code>, which is what makes a single host enough to drive
+			the adoption logic. The last probe waits for the identity queue, so a full
+			run takes a few seconds.
+		</p>
+		<p class="controls">
+			<button disabled id="run">Run all probes</button>
+			<button class="ghost" id="reset">Reset SDK state</button>
+		</p>
+
+		<div id="probes">
+			<div class="probe" data-probe="host-scoped" data-state="idle">
+				<div class="title">
+					<span class="badge">idle</span>with no cookie domain the cookie stays
+					on this host
+				</div>
+				<div class="what">
+					The unchanged behavior: expiring the host-only cookie leaves nothing
+					behind, so nothing was shared.
+				</div>
+				<div class="detail"></div>
+			</div>
+			<div class="probe" data-probe="ignores-shared" data-state="idle">
+				<div class="title">
+					<span class="badge">idle</span>with no cookie domain a shared id is
+					ignored
+				</div>
+				<div class="what">
+					A cookie a sibling already published must not reach a client that was
+					given no domain.
+				</div>
+				<div class="detail"></div>
+			</div>
+			<div class="probe" data-probe="shares" data-state="idle">
+				<div class="title">
+					<span class="badge">idle</span>the id this host holds is published at
+					the domain
+				</div>
+				<div class="what">
+					The cookie survives expiring the host-only variant, which is what
+					proves the browser accepted the <code>Domain</code> attribute.
+				</div>
+				<div class="detail"></div>
+			</div>
+			<div class="probe" data-probe="adopts" data-state="idle">
+				<div class="title">
+					<span class="badge">idle</span>a host with no id of its own adopts the
+					shared one
+				</div>
+				<div class="what">
+					The core of the story: arriving on a sibling subdomain continues the
+					same visitor.
+				</div>
+				<div class="detail"></div>
+			</div>
+			<div class="probe" data-probe="conflict" data-state="idle">
+				<div class="title">
+					<span class="badge">idle</span>which id wins when both exist
+				</div>
+				<div class="what">
+					Reports the semantics this build implements rather than asserting
+					one, because the story and the implementation disagree here.
+				</div>
+				<div class="detail"></div>
+			</div>
+			<div class="probe" data-probe="legacy" data-state="idle">
+				<div class="title">
+					<span class="badge">idle</span>a previous version's host cookie is
+					retired
+				</div>
+				<div class="what">
+					Two cookies of one name must never coexist. On a host where the
+					shared domain equals the host itself, this is the case the jsdom
+					suite cannot reach.
+				</div>
+				<div class="detail"></div>
+			</div>
+			<div class="probe" data-probe="identified" data-state="idle">
+				<div class="title">
+					<span class="badge">idle</span>an identified visitor does not adopt
+				</div>
+				<div class="what">
+					An identified visit is stitched by its email hash, so taking the
+					shared anonymous id could bind it to a second person.
+				</div>
+				<div class="detail"></div>
+			</div>
+			<div class="probe" data-probe="rotation" data-state="idle">
+				<div class="title">
+					<span class="badge">idle</span>an identity change republishes the new
+					id
+				</div>
+				<div class="what">
+					Switching email regenerates the id, and the shared cookie has to
+					follow instead of stranding the siblings on an id nobody uses.
+				</div>
+				<div class="detail"></div>
+			</div>
+			<div class="probe" data-probe="invalid" data-state="idle">
+				<div class="title">
+					<span class="badge">idle</span>a domain the browser would reject is
+					discarded
+				</div>
+				<div class="what">
+					A value this host is not under, an IP address, or one without a dot
+					has to resolve to no domain at all.
+				</div>
+				<div class="detail"></div>
+			</div>
+			<div class="probe" data-probe="wire" data-state="idle">
+				<div class="title">
+					<span class="badge">idle</span>the adopted id is the one on the wire
+				</div>
+				<div class="what">
+					The <code>/identity</code> body carries the shared id, so the backend
+					really does see one visitor rather than two.
+				</div>
+				<div class="detail"></div>
+			</div>
+		</div>
+
+		<h2>State</h2>
+		<p class="note">
+			Live view of the three places an id can sit, plus the buttons to put one
+			there by hand. Reload after seeding to watch the client decide. Unlike the
+			other harness pages, this one does <b>not</b> clear <code>ac_*</code> on
+			load — what survives a load is exactly what is under test, and wiping
+			would delete the id a sibling subdomain just published.
+		</p>
+		<div class="env" id="state"></div>
+		<p class="controls">
+			<button class="ghost" data-action="seedShared">
+				Seed shared cookie
+			</button>
+			<button class="ghost" data-action="seedHostOnly">
+				Seed legacy host-only cookie
+			</button>
+			<button class="ghost" data-action="expireHostOnly">
+				Expire host-only cookie
+			</button>
+			<button class="ghost" data-action="clearStorage">
+				Clear localStorage only
+			</button>
+			<button class="ghost" data-action="clearAll">Clear everything</button>
+		</p>
+
+		<h2>Checking it across two real hosts</h2>
+		<p class="note">
+			The probes drive the client's decision in full, but only a second real
+			hostname proves the browser hands the cookie over. Any
+			<code>*.localhost</code> name resolves to the loopback address with no
+			<code>/etc/hosts</code> entry, and browsers treat those names as a secure
+			context — which matters, because the client marks the cookie
+			<code>Secure</code>. Serve this directory and reach it through two names:
+		</p>
+		<ol class="expect">
+			<li>
+				Open <code>http://a.test.localhost:8000/cookie-domain.html</code>,
+				clear everything, and reload. This host mints an id and publishes it at
+				<code>test.localhost</code>.
+			</li>
+			<li>
+				Open <code>http://b.test.localhost:8000/cookie-domain.html</code> and
+				clear <em>localStorage only</em>. It adopts the same id instead of
+				minting a second one.
+			</li>
+			<li>
+				Give <code>b</code> an id of its own (clear everything there, reload),
+				then reload <code>a</code>. Whichever end gives way tells you the same
+				thing the <b>which id wins</b> probe reports.
+			</li>
+		</ol>
+
+		<p class="note" id="sdkNote"></p>
+
+		<script>
+			// Same shape liferay.com uses: point a <script> at the SDK, then
+			// Analytics.create(config) once it loads. Requests are REAL — they are
+			// queued and flushed to endpointUrl.
+
+			const DEV_CDN_URL = 'https://analytics-js-dev-cdn.liferay.com';
+			const LOCAL_URL = './local/analytics-all-min.js';
+
+			const params = new URLSearchParams(location.search);
+			const requestedSDK = params.get('sdk');
+
+			const SDK_URL =
+				requestedSDK === 'local'
+					? LOCAL_URL
+					: requestedSDK || DEV_CDN_URL;
+
+			const CONFIG = {
+				channelId: '831904237734003774',
+				dataSourceId: '820802606605225785',
+				endpointUrl: 'https://osbasahpublisher-ac-internal.lfr.cloud',
+				projectId: 'asah59dbaa580b264c578bb15c878dd363f0',
+			};
+
+			const COOKIE_NAME = 'ac_client_user_id';
+
+			// The identity queue flushes on this cadence, so the wire probe has to
+			// outwait it.
+
+			const FLUSH_INTERVAL = 2000;
+			const WAIT_MS = 3 * FLUSH_INTERVAL;
+
+			// The parent this host would share at. The server computes this per
+			// request with CookiesManager.getDomain(), which resolves the registrable
+			// domain; dropping the first label is the closest a page can get without
+			// carrying a public suffix list. A host whose parent has no dot —
+			// interaminense.dev, test.localhost — shares at its own name instead,
+			// which the client accepts and which is the shape the jsdom suite cannot
+			// test.
+
+			function defaultCookieDomain() {
+				const {hostname} = location;
+				const parent = hostname.split('.').slice(1).join('.');
+
+				return parent.includes('.') ? parent : hostname;
+			}
+
+			const COOKIE_DOMAIN =
+				params.get('cookieDomain') || defaultCookieDomain();
+
+			// ---- cookie plumbing -------------------------------------------------
+			//
+			// A cookie is identified by its domain as well as its name, so a
+			// host-scoped one and one scoped to the shared domain show up here as two
+			// separate entries. Counting them is how the page tells the two apart —
+			// document.cookie exposes no attributes at all.
+
+			function readCookies() {
+				return document.cookie
+					.split('; ')
+					.filter((cookie) => cookie.startsWith(COOKIE_NAME + '='))
+					.map((cookie) => cookie.slice(COOKIE_NAME.length + 1));
+			}
+
+			function writeCookie(value, domain) {
+				const attributes = [COOKIE_NAME + '=' + value];
+
+				if (domain) {
+					attributes.push('domain=' + domain);
+				}
+
+				attributes.push('path=/', 'Secure');
+
+				document.cookie = attributes.join('; ');
+			}
+
+			// Omitting the domain is what makes the browser expire the host-scoped
+			// cookie and leave one written at the shared domain untouched. That
+			// asymmetry is the only way to prove, from script, that a cookie carries
+			// a Domain attribute.
+
+			function expireCookie(domain) {
+				const attributes = [COOKIE_NAME + '='];
+
+				if (domain) {
+					attributes.push('domain=' + domain);
+				}
+
+				attributes.push(
+					'expires=Thu, 01 Jan 1970 00:00:00 GMT',
+					'path=/'
+				);
+
+				document.cookie = attributes.join('; ');
+			}
+
+			function clearStorage() {
+				Object.keys(localStorage)
+					.filter((key) => key.startsWith('ac_'))
+					.forEach((key) => localStorage.removeItem(key));
+			}
+
+			function clearAll() {
+				clearStorage();
+				expireCookie();
+				expireCookie(COOKIE_DOMAIN);
+			}
+
+			// ---- driving the client ----------------------------------------------
+
+			// Analytics.create() assigns onto the config object it is handed, so the
+			// resolved cookieDomain would leak from one probe into the next if the
+			// same object were reused. Every create gets a fresh copy.
+
+			function recreate(cookieDomain) {
+				if (window.Analytics && window.Analytics.dispose) {
+					window.Analytics.dispose();
+				}
+
+				const config = Object.assign({}, CONFIG);
+
+				if (cookieDomain !== null && cookieDomain !== undefined) {
+					config.cookieDomain = cookieDomain;
+				}
+
+				window.__ac = window.Analytics.create(config);
+
+				return window.__ac;
+			}
+
+			// The SDK stores through JSON.stringify and reads back through
+			// JSON.parse, while the cookie carries the raw id. Seeding or reading
+			// localStorage the way the cookie is handled would compare a quoted
+			// string against an unquoted one and fail every probe.
+
+			function localId() {
+				try {
+					return JSON.parse(localStorage.getItem(COOKIE_NAME)) || '';
+				}
+				catch (error) {
+					return '';
+				}
+			}
+
+			function seedLocalId(value) {
+				localStorage.setItem(COOKIE_NAME, JSON.stringify(value));
+			}
+
+			function sdkId() {
+				try {
+					return window.__ac && window.__ac._getUserId
+						? window.__ac._getUserId()
+						: '';
+				}
+				catch (error) {
+					return '';
+				}
+			}
+
+			// Seeds a starting state, then loads a client over it. `shared` stands in
+			// for an id a sibling subdomain published; `hostOnly` for the cookie a
+			// version of the client before this feature wrote at this exact host.
+
+			function scenario(setup) {
+				clearAll();
+
+				if (setup.hostOnly) {
+					writeCookie(setup.hostOnly);
+				}
+
+				if (setup.shared) {
+					writeCookie(setup.shared, COOKIE_DOMAIN);
+				}
+
+				if (setup.local) {
+					seedLocalId(setup.local);
+				}
+
+				const ac = recreate(
+					'cookieDomain' in setup ? setup.cookieDomain : COOKIE_DOMAIN
+				);
+
+				return {
+					ac,
+					cookies: readCookies(),
+					resolved: ac.config.cookieDomain,
+					stored: localId(),
+					used: sdkId(),
+				};
+			}
+
+			// ---- capture what leaves the page ------------------------------------
+
+			const requests = [];
+
+			const nativeFetch = window.fetch.bind(window);
+
+			window.fetch = function (url, options) {
+				const href = typeof url === 'string' ? url : url && url.url;
+
+				if (href && href.indexOf('/identity') !== -1) {
+					let body = null;
+
+					try {
+						body = JSON.parse((options && options.body) || 'null');
+					}
+					catch (error) {
+						body = {unparseable: String((options || {}).body)};
+					}
+
+					requests.push({at: new Date(), body});
+				}
+
+				return nativeFetch(url, options);
+			};
+
+			function waitForRequests(since) {
+				return new Promise((resolve) => {
+					const deadline = Date.now() + WAIT_MS;
+
+					const tick = () => {
+						if (requests.length > since) {
+							resolve(requests.slice(since));
+
+							return;
+						}
+
+						if (Date.now() >= deadline) {
+							resolve([]);
+
+							return;
+						}
+
+						setTimeout(tick, 120);
+					};
+
+					tick();
+				});
+			}
+
+			// ---- rendering -------------------------------------------------------
+
+			function row(key, value) {
+				const empty = !value && value !== 0;
+
+				return (
+					'<div><span class="k">' +
+					key +
+					'</span><span class="v' +
+					(empty ? ' none' : '') +
+					'">' +
+					(empty ? '(none)' : String(value)) +
+					'</span></div>'
+				);
+			}
+
+			function renderEnv() {
+				document.getElementById('env').innerHTML =
+					row('sdk', SDK_URL) +
+					row('host', location.hostname) +
+					row('cookieDomain under test', COOKIE_DOMAIN) +
+					row('projectId', CONFIG.projectId);
+			}
+
+			function renderState() {
+				const cookies = readCookies();
+
+				document.getElementById('state').innerHTML =
+					row('cookies named ' + COOKIE_NAME, cookies.length) +
+					row('cookie values', cookies.join(', ')) +
+					row('localStorage', localId()) +
+					row('id the client uses', sdkId()) +
+					row(
+						'cookieDomain the client resolved',
+						window.__ac ? window.__ac.config.cookieDomain : ''
+					);
+			}
+
+			function setVerdict(state, html) {
+				const verdict = document.getElementById('verdict');
+
+				verdict.className = 'verdict ' + state;
+				verdict.innerHTML = html;
+			}
+
+			function setProbe(name, state, detail) {
+				const probe = document.querySelector(
+					'[data-probe="' + name + '"]'
+				);
+
+				probe.dataset.state = state;
+				probe.querySelector('.badge').textContent = state;
+				probe.querySelector('.detail').textContent = detail || '';
+			}
+
+			// Probes 1 and 2 assert the behavior a build without the feature still
+			// has to show, so they are the only meaningful ones there. The rest are
+			// not merely unprovable on an old client — several would pass by
+			// accident, because writing the cookie at this exact host happens to
+			// satisfy their assertions for the wrong reason.
+
+			const SHARING_PROBES = [
+				'shares',
+				'adopts',
+				'conflict',
+				'legacy',
+				'identified',
+				'rotation',
+				'invalid',
+				'wire',
+			];
+
+			let SUPPORTED = false;
+
+			const PROBE_NAMES = [
+				'host-scoped',
+				'ignores-shared',
+				'shares',
+				'adopts',
+				'conflict',
+				'legacy',
+				'identified',
+				'rotation',
+				'invalid',
+				'wire',
+			];
+
+			function setBusy(busy) {
+				const runButton = document.getElementById('run');
+
+				runButton.disabled = busy;
+				runButton.textContent = busy ? 'Running…' : 'Run all probes';
+
+				document
+					.querySelectorAll('[data-action], #reset')
+					.forEach((button) => {
+						button.disabled = busy;
+					});
+			}
+
+			// ---- support detection -----------------------------------------------
+			//
+			// Asked of the live client rather than by creating a throwaway one,
+			// because a create is not free here: it can mint an id, and this page
+			// deliberately never clears state on load. Reading config.cookieDomain
+			// back would not answer the question either — an older build has no
+			// _resolveCookieDomain and hands the configured value straight back, so
+			// a valid domain looks identical on both. The `invalid` probe carries the
+			// behavioral proof, where wiping is fine.
+
+			function hasCookieDomainSupport(ac) {
+				return typeof ac._resolveCookieDomain === 'function';
+			}
+
+			// ---- probes ----------------------------------------------------------
+
+			async function runProbes() {
+				setBusy(true);
+
+				PROBE_NAMES.forEach((name) => setProbe(name, 'running', ''));
+
+				// 1 — no cookie domain: the cookie stays on this host.
+
+				let result = scenario({cookieDomain: null, local: 'local-1'});
+
+				expireCookie();
+
+				let after = readCookies();
+
+				setProbe(
+					'host-scoped',
+					result.cookies.length === 1 &&
+						result.cookies[0] === 'local-1' &&
+						after.length === 0
+						? 'pass'
+						: 'fail',
+					'wrote ' +
+						JSON.stringify(result.cookies) +
+						', and expiring the host-only cookie left ' +
+						JSON.stringify(after)
+				);
+
+				// 2 — no cookie domain: an id a sibling published is not taken.
+
+				result = scenario({cookieDomain: null, shared: 'shared-2'});
+
+				setProbe(
+					'ignores-shared',
+					result.stored !== 'shared-2' && result.used !== 'shared-2'
+						? 'pass'
+						: 'fail',
+					'shared cookie held shared-2, client used ' +
+						(result.used || '(none)')
+				);
+
+				if (!SUPPORTED) {
+					SHARING_PROBES.forEach((name) =>
+						setProbe(
+							name,
+							'na',
+							'This build ignores cookieDomain, so there is nothing to ' +
+								'share and nothing to assert. Point ?sdk= at a build ' +
+								'carrying LPD-102209.'
+						)
+					);
+
+					renderState();
+					setBusy(false);
+
+					return;
+				}
+
+				// 3 — with a cookie domain: the id is published at the domain, proven
+				// by outliving the host-only cookie.
+
+				result = scenario({local: 'local-3'});
+
+				expireCookie();
+
+				after = readCookies();
+
+				setProbe(
+					'shares',
+					after.length === 1 && after[0] === 'local-3'
+						? 'pass'
+						: 'fail',
+					'resolved cookieDomain ' +
+						JSON.stringify(result.resolved) +
+						'; after expiring the host-only cookie ' +
+						JSON.stringify(after) +
+						(after.length
+							? ' survives, so it carries Domain=' + COOKIE_DOMAIN
+							: ' — nothing carried the Domain attribute')
+				);
+
+				// 4 — no id of its own: the shared one is adopted.
+
+				result = scenario({shared: 'shared-4'});
+
+				setProbe(
+					'adopts',
+					result.stored === 'shared-4' && result.used === 'shared-4'
+						? 'pass'
+						: 'fail',
+					'localStorage ' +
+						(result.stored || '(none)') +
+						', client uses ' +
+						(result.used || '(none)')
+				);
+
+				// 5 — both exist. The story asks for the local id to win; this build
+				// may answer either way, so the probe names the answer.
+
+				result = scenario({local: 'local-5', shared: 'shared-5'});
+
+				if (result.stored === 'shared-5') {
+					setProbe(
+						'conflict',
+						'pass',
+						'shared-cookie-wins — the host gave up local-5 and converged ' +
+							'on shared-5.\nThis is what the branch implements. The ' +
+							'story LPD-102207 asks for the opposite ("a subdomain that ' +
+							'already has its own anonymous id keeps it permanently"), ' +
+							'so the two disagree and the ticket needs the call.'
+					);
+				}
+				else if (result.stored === 'local-5') {
+					setProbe(
+						'conflict',
+						'pass',
+						'first-touch-wins — the host kept local-5 and left shared-5 ' +
+							'alone.\nThis is what the story LPD-102207 asks for. A ' +
+							'host that already had an id then stays diverged from ' +
+							'its siblings for good.'
+					);
+				}
+				else {
+					setProbe(
+						'conflict',
+						'fail',
+						'neither id survived — localStorage holds ' +
+							(result.stored || '(none)') +
+							', cookies ' +
+							JSON.stringify(result.cookies)
+					);
+				}
+
+				// 6 — the cookie a previous version wrote at this exact host is
+				// retired, leaving exactly one cookie of that name.
+
+				result = scenario({hostOnly: 'legacy-6', local: 'legacy-6'});
+
+				expireCookie();
+
+				after = readCookies();
+
+				setProbe(
+					'legacy',
+					result.cookies.length === 1 && after.length === 1
+						? 'pass'
+						: 'fail',
+					result.cookies.length +
+						' cookie(s) named ' +
+						COOKIE_NAME +
+						' after load: ' +
+						JSON.stringify(result.cookies) +
+						'\nexpiring the host-only one leaves ' +
+						JSON.stringify(after) +
+						(COOKIE_DOMAIN === location.hostname
+							? '\nshared domain equals the host here, which is the ' +
+								'shape jsdom merges into one cookie and a browser ' +
+								'keeps apart'
+							: '')
+				);
+
+				// 7 — an identified visitor does not take the shared id. create()
+				// reads the identity off Liferay.ThemeDisplay, so standing one up is
+				// what makes the load an identified one. Only ThemeDisplay is
+				// defined, leaving the cookie helpers on their raw document.cookie
+				// path.
+
+				const previousLiferay = window.Liferay;
+
+				window.Liferay = {
+					ThemeDisplay: {
+						getUserEmailAddress: () => 'known.visitor@example.com',
+						getUserName: () => 'Known Visitor',
+					},
+				};
+
+				try {
+					result = scenario({shared: 'shared-7'});
+				}
+				finally {
+					if (previousLiferay === undefined) {
+						delete window.Liferay;
+					}
+					else {
+						window.Liferay = previousLiferay;
+					}
+				}
+
+				setProbe(
+					'identified',
+					result.stored !== 'shared-7' &&
+						result.cookies.indexOf('shared-7') !== -1
+						? 'pass'
+						: 'fail',
+					'client used ' +
+						(result.used || '(none)') +
+						' and left the cookie at ' +
+						JSON.stringify(result.cookies)
+				);
+
+				// 8 — switching email regenerates the id and the cookie follows.
+
+				result = scenario({});
+
+				const beforeRotation = readCookies()[0] || '';
+
+				await result.ac.setIdentity({
+					email: 'first@example.com',
+					name: 'First',
+				});
+				await result.ac.setIdentity({
+					email: 'second@example.com',
+					name: 'Second',
+				});
+
+				const rotated = localId();
+				const rotatedCookies = readCookies();
+
+				setProbe(
+					'rotation',
+					beforeRotation &&
+						rotated &&
+						rotated !== beforeRotation &&
+						rotatedCookies.length === 1 &&
+						rotatedCookies[0] === rotated
+						? 'pass'
+						: 'fail',
+					'id went from ' +
+						(beforeRotation || '(none)') +
+						' to ' +
+						(rotated || '(none)') +
+						', cookies now ' +
+						JSON.stringify(rotatedCookies)
+				);
+
+				// 9 — domains the browser would refuse have to resolve to nothing.
+				// The last entry is this host's own final label, which is the
+				// no-dot rule.
+
+				const rejected = [
+					'example.com',
+					'127.0.0.1',
+					'com',
+					location.hostname.split('.').pop(),
+				];
+
+				const verdicts = rejected.map((domain) => {
+					const outcome = scenario({
+						cookieDomain: domain,
+						shared: 'shared-9',
+					});
+
+					return {
+						domain,
+						ok:
+							outcome.resolved === '' &&
+							outcome.stored !== 'shared-9',
+						resolved: outcome.resolved,
+					};
+				});
+
+				setProbe(
+					'invalid',
+					verdicts.every((verdict) => verdict.ok) ? 'pass' : 'fail',
+					verdicts
+						.map(
+							(verdict) =>
+								verdict.domain +
+								' → ' +
+								JSON.stringify(verdict.resolved) +
+								(verdict.ok ? '' : '  ← not discarded')
+						)
+						.join('\n')
+				);
+
+				// 10 — the adopted id is what the Identity Service is told. Nothing is
+				// wiped between the create and the wait, or the queue holding the
+				// message would go with it.
+
+				const since = requests.length;
+
+				result = scenario({shared: 'shared-10'});
+
+				const captured = await waitForRequests(since);
+
+				const onWire = captured.length
+					? captured[captured.length - 1].body.userId
+					: '';
+
+				setProbe(
+					'wire',
+					onWire === 'shared-10' ? 'pass' : 'fail',
+					captured.length
+						? '/identity carried userId ' + JSON.stringify(onWire)
+						: 'No /identity request was captured within ' +
+							WAIT_MS / 1000 +
+							's.'
+				);
+
+				renderState();
+				setBusy(false);
+			}
+
+			// ---- boot ------------------------------------------------------------
+
+			function boot() {
+				renderEnv();
+
+				if (!window.Analytics) {
+					setVerdict(
+						'blocked',
+						'<b>SDK failed to load</b> — ' + SDK_URL
+					);
+
+					return;
+				}
+
+				// Every other page in the harness wipes its ac_* keys on load for a
+				// clean slate. This one must not: what survives a load is the thing
+				// under test, and expiring the cookie here would delete the id a
+				// sibling subdomain just published — making the two-host check below
+				// impossible to perform. The probes each seed their own state, and
+				// the buttons under State are the explicit way to clear.
+
+				const ac = recreate(COOKIE_DOMAIN);
+
+				renderState();
+
+				SUPPORTED = hasCookieDomainSupport(ac);
+
+				const resolved = ac.config.cookieDomain;
+
+				if (!SUPPORTED) {
+					setVerdict(
+						'missing',
+						'<b>This build has no cookieDomain support.</b> ' +
+							'The client ignores the field, so the cookie stays scoped ' +
+							'to this host. The first two probes still mean something — ' +
+							'they assert the behavior this build has to keep — and ' +
+							'the rest report not-applicable. Point <code>?sdk=</code> ' +
+							'at a build carrying LPD-102209.'
+					);
+				}
+				else if (!resolved) {
+					setVerdict(
+						'missing',
+						'<b>Nothing can be shared from this host.</b> ' +
+							'<code>' +
+							COOKIE_DOMAIN +
+							'</code> was discarded — a domain needs a dot, must not ' +
+							'be an IP address, and this host has to sit under it. ' +
+							'Reach the page through a name like ' +
+							'<code>a.test.localhost</code>, or pass ' +
+							'<code>?cookieDomain=</code>.'
+					);
+				}
+				else {
+					setVerdict(
+						'supported',
+						'<b>This build shares the user id at <code>' +
+							resolved +
+							'</code>.</b> Every host under that domain answers with ' +
+							'one anonymous id.'
+					);
+				}
+
+				document.getElementById('sdkNote').innerHTML =
+					SDK_URL === DEV_CDN_URL
+						? 'Running against the dev CDN. Until the client release ' +
+							'carrying <code>cookieDomain</code> reaches it, the field ' +
+							'is ignored and nothing is shared — point ' +
+							'<code>?sdk=</code> at a newer build to see it through.'
+						: '';
+
+				document.getElementById('run').disabled = false;
+			}
+
+			const ACTIONS = {
+				clearAll,
+				clearStorage,
+				expireHostOnly: () => expireCookie(),
+				seedHostOnly: () => writeCookie('seeded-legacy-id'),
+				seedShared: () => writeCookie('seeded-shared-id', COOKIE_DOMAIN),
+			};
+
+			document.body.addEventListener('click', (event) => {
+				const action = ACTIONS[event.target.dataset.action];
+
+				if (action) {
+					action();
+
+					renderState();
+				}
+			});
+
+			document.getElementById('run').addEventListener('click', runProbes);
+
+			document.getElementById('reset').addEventListener('click', () => {
+				clearAll();
+
+				location.reload();
+			});
+
+			renderEnv();
+			renderState();
+
+			const sdk = document.createElement('script');
+
+			sdk.onerror = () =>
+				setVerdict('blocked', '<b>SDK failed to load</b> — ' + SDK_URL);
+			sdk.onload = boot;
+			sdk.src = SDK_URL;
+
+			document.head.appendChild(sdk);
+		</script>
+	</body>
+</html>
