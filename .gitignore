@@ -1,2 +1,3 @@
 local/*.js
 local/*.map
+.playwright-mcp/
