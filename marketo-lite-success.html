@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta content="width=device-width, initial-scale=1.0" name="viewport" />
+
+		<title>Thank you — AC SDK harness</title>
+
+		<!--
+			Follow-up URL for marketo-lite.html. Carries no SDK on purpose: it
+			only reports what the form page recorded on the way out, and a client
+			here would drain whatever the form page left queued.
+		-->
+
+		<style>
+			body {
+				background: #f8fafc;
+				color: #0f172a;
+				font-family: system-ui, sans-serif;
+				line-height: 1.5;
+				margin: 0 auto;
+				max-width: 760px;
+				padding: 40px 24px 32px;
+			}
+			h1 {
+				font-size: 1.6rem;
+				margin: 0 0 6px;
+			}
+			.lead {
+				color: #475569;
+				margin: 0 0 24px;
+			}
+			.meta {
+				color: #475569;
+				display: flex;
+				flex-wrap: wrap;
+				font-size: 0.85em;
+				gap: 6px 18px;
+				margin-bottom: 16px;
+			}
+			.entry {
+				background: #fff;
+				border: 1px solid #e2e8f0;
+				border-radius: 8px;
+				margin-bottom: 12px;
+				overflow: hidden;
+			}
+			.entry header {
+				align-items: center;
+				background: #f1f5f9;
+				display: flex;
+				flex-wrap: wrap;
+				font-size: 0.85em;
+				gap: 10px;
+				padding: 8px 14px;
+			}
+			.entry .url {
+				color: #475569;
+				font-family: ui-monospace, monospace;
+				font-size: 0.9em;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+			.badge {
+				border-radius: 999px;
+				font-size: 0.8em;
+				font-weight: 700;
+				padding: 2px 9px;
+			}
+			.badge.ok {
+				background: #dcfce7;
+				color: #166534;
+			}
+			.badge.bad {
+				background: #fee2e2;
+				color: #991b1b;
+			}
+			pre {
+				font-size: 0.8em;
+				margin: 0;
+				overflow-x: auto;
+				padding: 12px 14px;
+			}
+			code {
+				background: #e2e8f0;
+				border-radius: 4px;
+				font-size: 0.88em;
+				padding: 1px 5px;
+			}
+			.note {
+				background: #fffbeb;
+				border-left: 3px solid #f59e0b;
+				color: #78350f;
+				font-size: 0.88em;
+				margin: 16px 0;
+				padding: 10px 14px;
+			}
+			a.back {
+				color: #1d4ed8;
+				display: inline-block;
+				margin-top: 12px;
+			}
+		</style>
+	</head>
+
+	<body>
+		<h1>Thank you</h1>
+		<p class="lead">
+			This is the form's follow-up URL. The script only lets the visitor get
+			here once <code>flush()</code> settles.
+		</p>
+
+		<div id="report"></div>
+
+		<a class="back" id="back" href="marketo-lite.html">← Back to the form</a>
+
+		<script>
+			const TRIP_KEY = 'harness_lite_trip';
+
+			document.getElementById('back').href =
+				'marketo-lite.html' + location.search;
+
+			const report = document.getElementById('report');
+
+			function escape(text) {
+				const element = document.createElement('span');
+
+				element.textContent = text;
+
+				return element.innerHTML;
+			}
+
+			let trip = null;
+
+			try {
+				trip = JSON.parse(localStorage.getItem(TRIP_KEY) || 'null');
+			}
+			catch (error) {}
+
+			if (!trip) {
+				report.innerHTML =
+					'<p class="note">No submit recorded. Open this page by ' +
+					'submitting <a href="marketo-lite.html">the form</a>.</p>';
+			}
+			else {
+				const meta =
+					'<div class="meta">' +
+					'<div><b>SDK</b> ' + escape(trip.sdkUrl) + '</div>' +
+					'<div><b>Version</b> ' + escape(trip.version || 'unknown') +
+					'</div>' +
+					'<div><b>flush()</b> ' + (trip.hadFlush ? 'yes' : 'no') +
+					'</div>' +
+					'<div><b>Submitted values</b> ' + trip.submittedCount +
+					'</div>' +
+					'</div>';
+
+				let body = '';
+
+				if (!trip.requests.length) {
+					body =
+						'<p class="note">No <code>/identity</code> request left ' +
+						'before the navigation. ' +
+						(trip.hadFlush
+							? 'The build has <code>flush()</code>, so this is ' +
+								'unexpected — check the console on the form page.'
+							: 'Expected on this build: without <code>flush()</code> ' +
+								'the script navigates immediately and the identity ' +
+								'stays in the queue. Point the SDK URL at ' +
+								'<code>local</code> or a newer bundle.') +
+						'</p>';
+				}
+				else {
+					body = trip.requests
+						.map((request) => {
+							const ok = /^HTTP 2/.test(request.status || '');
+							const lead =
+								trip.departedAt && request.settledAt
+									? trip.departedAt - request.settledAt +
+										'ms before leaving'
+									: 'did not settle before leaving';
+							const fields = request.body && request.body.fields;
+
+							return (
+								'<div class="entry"><header>' +
+								'<span class="badge ' + (ok ? 'ok' : 'bad') + '">' +
+								escape(request.status || 'pending') +
+								'</span><span>' + lead + '</span>' +
+								'<span>' +
+								(Array.isArray(fields)
+									? fields.length + ' fields'
+									: 'no <code>fields</code> — build predates them') +
+								'</span>' +
+								'<span class="url">' + escape(request.url) +
+								'</span></header><pre>' +
+								escape(JSON.stringify(request.body, null, 2)) +
+								'</pre></div>'
+							);
+						})
+						.join('');
+				}
+
+				report.innerHTML = meta + body;
+			}
+		</script>
+	</body>
+</html>

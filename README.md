@@ -16,6 +16,8 @@ Interactive, in-browser test harness for Liferay's Analytics Cloud client SDK
 | [`events-on-load.html`](events-on-load.html) | The view/impression events that fire as assets enter the viewport on load, across all six application types. |
 | [`reveal-scenarios.html`](reveal-scenarios.html) | Every plugin's **view and impression** assets, each hidden by an **ancestor** (`opacity:0` / `visibility:hidden`, the mega-menu case) and revealed via a toggle. |
 | [`marketo-form.html`](marketo-form.html) | The LPD-103259 integration script against a stand-in for the liferay.com demo form, hidden campaign fields and all. Takes `?script=` alongside `?sdk=`. |
+| [`marketo-lite.html`](marketo-lite.html) | The same script with nothing else on the page: the form, a Submit button and an editable SDK configuration box (stored in `localStorage`, overridable by query string). |
+| [`marketo-lite-success.html`](marketo-lite-success.html) | Follow-up URL for `marketo-lite.html`; shows the `/identity` payload that left before the navigation. Carries no SDK on purpose. |
 | [`marketo-integration.js`](marketo-integration.js) | The script the guide publishes, committed so the harness can load it. |
 | [`flush.html`](flush.html) | `Analytics.flush()` (LPD-103258). Sends the queue on demand and times how long the Promise takes to settle, including against a deliberately stalled endpoint. |
 | [`flush-away.html`](flush-away.html) | Navigation target for the `flush.html` round trips; carries no SDK on purpose. |

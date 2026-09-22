@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta content="width=device-width, initial-scale=1.0" name="viewport" />
+
+		<title>Marketo form (lite) — AC SDK harness</title>
+
+		<style>
+			body {
+				background: #f8fafc;
+				color: #0f172a;
+				font-family: system-ui, sans-serif;
+				line-height: 1.5;
+				margin: 0 auto;
+				max-width: 760px;
+				padding: 40px 24px 32px;
+			}
+			h1 {
+				font-size: 1.9rem;
+				margin: 0 0 6px;
+			}
+			h2 {
+				font-size: 1.05rem;
+				margin: 32px 0 10px;
+			}
+			.lead {
+				color: #475569;
+				margin: 0 0 24px;
+			}
+			.panel {
+				background: #fff;
+				border: 1px solid #e2e8f0;
+				border-radius: 10px;
+				padding: 22px 26px;
+			}
+			.panel.config {
+				background: #f1f5f9;
+			}
+			.grid {
+				display: grid;
+				gap: 14px 20px;
+				grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+			}
+			.wide {
+				grid-column: 1 / -1;
+			}
+			label {
+				display: block;
+				font-size: 0.78em;
+				font-weight: 600;
+				letter-spacing: 0.03em;
+				margin-bottom: 4px;
+				text-transform: uppercase;
+			}
+			input,
+			select {
+				border: 1px solid #cbd5e1;
+				border-radius: 6px;
+				box-sizing: border-box;
+				font-family: inherit;
+				font-size: 0.95em;
+				padding: 9px 11px;
+				width: 100%;
+			}
+			input.missing {
+				background: #fef2f2;
+				border-color: #f87171;
+			}
+			button {
+				background: #1d4ed8;
+				border: 0;
+				border-radius: 6px;
+				color: #fff;
+				cursor: pointer;
+				font-family: inherit;
+				font-size: 1em;
+				font-weight: 600;
+				padding: 11px 26px;
+			}
+			button.ghost {
+				background: #fff;
+				border: 1px solid #cbd5e1;
+				color: #334155;
+				font-size: 0.9em;
+				font-weight: 500;
+				padding: 7px 14px;
+			}
+			button[disabled] {
+				cursor: not-allowed;
+				opacity: 0.5;
+			}
+			.actions {
+				align-items: center;
+				display: flex;
+				flex-wrap: wrap;
+				gap: 12px;
+				margin-top: 20px;
+			}
+			.hint {
+				color: #64748b;
+				font-size: 0.88em;
+			}
+			.status {
+				color: #475569;
+				display: flex;
+				flex-wrap: wrap;
+				font-size: 0.85em;
+				gap: 6px 18px;
+				margin-top: 16px;
+			}
+			code {
+				background: #e2e8f0;
+				border-radius: 4px;
+				font-size: 0.88em;
+				padding: 1px 5px;
+			}
+			.note {
+				background: #fffbeb;
+				border-left: 3px solid #f59e0b;
+				color: #78350f;
+				font-size: 0.88em;
+				margin: 16px 0 0;
+				padding: 10px 14px;
+			}
+			.blocked {
+				background: #fef2f2;
+				border-left-color: #ef4444;
+				color: #991b1b;
+			}
+			.note:empty {
+				display: none;
+			}
+		</style>
+	</head>
+
+	<body>
+		<h1>Marketo form <small class="hint">lite</small></h1>
+		<p class="lead">
+			The published Marketo integration script against a stand-in for the
+			liferay.com demo form, with nothing else on the page. Submit, and the
+			success page shows what reached <code>/identity</code>.
+			<a href="marketo-form.html">marketo-form.html</a> has the probes.
+		</p>
+
+		<h2>SDK configuration</h2>
+		<div class="panel config">
+			<div class="grid">
+				<div class="wide">
+					<label for="sdkUrl">SDK URL</label>
+					<input id="sdkUrl" placeholder="local, or a bundle URL" />
+				</div>
+				<div class="wide">
+					<label for="endpointUrl">Endpoint URL (publisher)</label>
+					<input id="endpointUrl" />
+				</div>
+				<div>
+					<label for="projectId">Project ID</label>
+					<input id="projectId" />
+				</div>
+				<div>
+					<label for="dataSourceId">Data Source ID</label>
+					<input id="dataSourceId" />
+				</div>
+				<div>
+					<label for="channelId">Channel ID</label>
+					<input id="channelId" />
+				</div>
+			</div>
+
+			<div class="actions">
+				<button class="ghost" id="apply" type="button">
+					Apply and reload
+				</button>
+				<button class="ghost" id="defaults" type="button">
+					Restore defaults
+				</button>
+			</div>
+
+			<div class="status">
+				<div><b>Loaded</b> <span id="sdkLoaded">…</span></div>
+				<div><b>Version</b> <span id="sdkVersion">…</span></div>
+				<div><b>flush()</b> <span id="sdkFlush">…</span></div>
+			</div>
+
+			<p class="note" id="sdkNote"></p>
+		</div>
+
+		<h2>Request a Demo</h2>
+		<div class="panel">
+			<div class="grid">
+				<div>
+					<label for="FirstName">First Name</label>
+					<input id="FirstName" value="John" />
+				</div>
+				<div>
+					<label for="LastName">Last Name</label>
+					<input id="LastName" value="Doe" />
+				</div>
+				<div>
+					<label for="Email">Business Email</label>
+					<input id="Email" />
+				</div>
+				<div>
+					<label for="Company">Company</label>
+					<input id="Company" value="Acme Inc" />
+				</div>
+				<div>
+					<label for="Country">Country</label>
+					<select id="Country">
+						<option>Brazil</option>
+						<option>United States</option>
+						<option>Spain</option>
+					</select>
+				</div>
+				<div>
+					<label for="Phone">Phone</label>
+					<input id="Phone" value="+55 11 99999-0000" />
+				</div>
+			</div>
+
+			<div class="actions">
+				<button disabled id="submit" type="button">Submit</button>
+				<span class="hint" id="submitHint">Loading the SDK…</span>
+			</div>
+		</div>
+
+		<script>
+			const DEV_CDN_URL = 'https://analytics-js-dev-cdn.liferay.com';
+			const LOCAL_SDK_URL = './local/analytics-all-min.js';
+
+			// Committed, not a local/ drop point: unlike the SDK there is no CDN
+			// to fall back to, so a gitignored copy would 404 on GitHub Pages.
+
+			const SCRIPT_URL = './marketo-integration.js';
+
+			const CONFIG_KEY = 'harness_lite_config';
+
+			// Read by marketo-lite-success.html. Written synchronously as things
+			// happen, because the script navigates away and nothing in memory
+			// survives that.
+
+			const TRIP_KEY = 'harness_lite_trip';
+
+			const FORM_ID = 1086;
+
+			const DEFAULTS = {
+				channelId: '831904237734003774',
+				dataSourceId: '820802606605225785',
+				endpointUrl: 'https://osbasahpublisher-ac-internal.lfr.cloud',
+				projectId: 'asah59dbaa580b264c578bb15c878dd363f0',
+				sdkUrl: '',
+			};
+
+			const FIELD_NAMES = Object.keys(DEFAULTS);
+
+			// The real form 1086 carries these alongside the visible fields. The
+			// script is expected to drop every one of them.
+
+			const HIDDEN_VALUES = {
+				Last_CID__c: 'cid-4711',
+				Last_Campaign__c: 'demo-request-q3',
+				Last_Medium__c: 'cpc',
+				Last_Source__c: 'google',
+				Marketing_Subscription_Opt_In__c: true,
+				Recent_Asset_URL__c: 'https://www.liferay.com/resources/ebook',
+				Where_did_you_hear_about_Liferay__c: 'Search engine',
+			};
+
+			const params = new URLSearchParams(location.search);
+
+			function readJSON(key) {
+				try {
+					return JSON.parse(localStorage.getItem(key) || 'null');
+				}
+				catch (error) {
+					return null;
+				}
+			}
+
+			// The query string wins over what is stored, which wins over the
+			// defaults. ?sdk= keeps the name every other page uses.
+
+			const stored = readJSON(CONFIG_KEY) || {};
+
+			const settings = {};
+
+			FIELD_NAMES.forEach((name) => {
+				const fromQuery = params.get(name === 'sdkUrl' ? 'sdk' : name);
+
+				settings[name] = fromQuery || stored[name] || DEFAULTS[name];
+
+				document.getElementById(name).value = settings[name];
+			});
+
+			const SDK_URL =
+				settings.sdkUrl === 'local'
+					? LOCAL_SDK_URL
+					: settings.sdkUrl || DEV_CDN_URL;
+
+			const CONFIG = {
+				channelId: settings.channelId,
+				dataSourceId: settings.dataSourceId,
+				endpointUrl: settings.endpointUrl,
+				projectId: settings.projectId,
+			};
+
+			document.getElementById('sdkLoaded').textContent = SDK_URL;
+
+			// Clean slate on every load, the trip included: it describes the last
+			// submit and this load has not submitted anything yet.
+
+			Object.keys(localStorage)
+				.filter((key) => key.startsWith('ac_'))
+				.forEach((key) => localStorage.removeItem(key));
+
+			localStorage.removeItem(TRIP_KEY);
+
+			// A fresh address every load, so the identity dedup never swallows a
+			// resubmit and the backend always sees an address it has not seen.
+
+			function freshEmail() {
+				return 'marketo.lite.' + Date.now() + '@example.com';
+			}
+
+			document.getElementById('Email').value = freshEmail();
+
+			window.addEventListener('pageshow', (event) => {
+				if (event.persisted) {
+					document.getElementById('Email').value = freshEmail();
+				}
+			});
+
+			function updateTrip(patch) {
+				const trip = readJSON(TRIP_KEY);
+
+				if (trip) {
+					localStorage.setItem(
+						TRIP_KEY,
+						JSON.stringify(Object.assign(trip, patch))
+					);
+				}
+			}
+
+			// Record the /identity requests that leave after the submit. Before
+			// the submit there is no trip, so the anonymous identity create()
+			// queues at load is left out.
+
+			const nativeFetch = window.fetch.bind(window);
+
+			window.fetch = function (url, options) {
+				const href = typeof url === 'string' ? url : url && url.url;
+				const trip = readJSON(TRIP_KEY);
+
+				if (!trip || !href || href.indexOf('/identity') === -1) {
+					return nativeFetch(url, options);
+				}
+
+				let body = null;
+
+				try {
+					body = JSON.parse((options && options.body) || 'null');
+				}
+				catch (error) {
+					body = {unparseable: String((options || {}).body)};
+				}
+
+				const index = trip.requests.length;
+
+				updateTrip({
+					requests: trip.requests.concat([
+						{at: Date.now(), body: body, status: null, url: href},
+					]),
+				});
+
+				function settle(status) {
+					const current = readJSON(TRIP_KEY);
+
+					if (current && current.requests[index]) {
+						current.requests[index].status = status;
+						current.requests[index].settledAt = Date.now();
+
+						localStorage.setItem(TRIP_KEY, JSON.stringify(current));
+					}
+				}
+
+				return nativeFetch(url, options).then(
+					(response) => {
+						settle('HTTP ' + response.status);
+
+						return response;
+					},
+					(error) => {
+						settle('network error: ' + error);
+
+						throw error;
+					}
+				);
+			};
+
+			window.addEventListener('pagehide', () => {
+				updateTrip({departedAt: Date.now()});
+			});
+
+			// Stands in for MktoForms2. It has to exist before the script loads,
+			// because the script calls whenReady() as soon as it runs.
+
+			let submitForm = null;
+
+			window.MktoForms2 = {
+				whenReady(callback) {
+					callback({
+						getId: () => FORM_ID,
+						onSuccess(handler) {
+							submitForm = (values, followUpUrl) =>
+								handler(values, followUpUrl);
+						},
+					});
+				},
+			};
+
+			function readForm() {
+				const values = Object.assign({}, HIDDEN_VALUES);
+
+				[
+					'Company',
+					'Country',
+					'Email',
+					'FirstName',
+					'LastName',
+					'Phone',
+				].forEach((name) => {
+					values[name] = document.getElementById(name).value;
+				});
+
+				return values;
+			}
+
+			function loadScript(src) {
+				return new Promise((resolve, reject) => {
+					const script = document.createElement('script');
+
+					script.onerror = () =>
+						reject(new Error('Failed to load ' + src));
+					script.onload = resolve;
+					script.src = src;
+
+					document.head.appendChild(script);
+				});
+			}
+
+			function note(html, blocked) {
+				const element = document.getElementById('sdkNote');
+
+				element.className = blocked ? 'note blocked' : 'note';
+				element.innerHTML = html;
+			}
+
+			document.getElementById('apply').addEventListener('click', () => {
+				const next = {};
+
+				FIELD_NAMES.forEach((name) => {
+					next[name] = document.getElementById(name).value.trim();
+				});
+
+				localStorage.setItem(CONFIG_KEY, JSON.stringify(next));
+
+				// The query string would win over what was just saved, so drop it.
+
+				location.href = location.pathname;
+			});
+
+			document.getElementById('defaults').addEventListener('click', () => {
+				localStorage.removeItem(CONFIG_KEY);
+
+				location.href = location.pathname;
+			});
+
+			document.getElementById('submit').addEventListener('click', () => {
+				const values = readForm();
+
+				localStorage.setItem(
+					TRIP_KEY,
+					JSON.stringify({
+						endpointUrl: CONFIG.endpointUrl,
+						hadFlush: typeof window.Analytics.flush === 'function',
+						requests: [],
+						sdkUrl: SDK_URL,
+						submittedAt: Date.now(),
+						submittedCount: Object.keys(values).length,
+						version: window.__ac.version || null,
+					})
+				);
+
+				document.getElementById('submit').disabled = true;
+				document.getElementById('submitHint').textContent = 'Sending…';
+
+				// Carry the query string, so the success page's way back lands on
+				// the same SDK and workspace.
+
+				submitForm(values, './marketo-lite-success.html' + location.search);
+			});
+
+			const missing = ['endpointUrl', 'projectId', 'dataSourceId'].filter(
+				(name) => !CONFIG[name]
+			);
+
+			if (missing.length) {
+				missing.forEach((name) => {
+					document.getElementById(name).classList.add('missing');
+				});
+
+				note(
+					'Fill in <b>' +
+						missing.join('</b>, <b>') +
+						'</b> and hit "Apply and reload".',
+					true
+				);
+
+				document.getElementById('submitHint').textContent = '';
+			}
+			else {
+				loadScript(SDK_URL)
+					.then(() => {
+						window.__ac = window.Analytics.create(CONFIG);
+						window.__ac.send('pageViewed', 'Page', {
+							externalReferenceCode: 'harness-marketo-lite',
+						});
+
+						const hasFlush = typeof window.__ac.flush === 'function';
+
+						document.getElementById('sdkVersion').textContent =
+							window.__ac.version || 'unknown';
+						document.getElementById('sdkFlush').textContent = hasFlush
+							? 'yes'
+							: 'no';
+
+						// Not a blocker: submitting still exercises the script's
+						// fallback. But without this a run looks broken.
+
+						if (!hasFlush) {
+							note(
+								'This build has no <code>flush()</code>, so the ' +
+									'script navigates immediately and the identity ' +
+									'stays queued — the success page will report ' +
+									'that nothing left. Set the SDK URL to ' +
+									'<code>local</code> or a newer bundle to see the ' +
+									'request go out.'
+							);
+						}
+
+						return loadScript(SCRIPT_URL);
+					})
+					.then(() => {
+						document.getElementById('submit').disabled = !submitForm;
+						document.getElementById('submitHint').textContent =
+							submitForm
+								? ''
+								: 'The script did not register an onSuccess handler.';
+					})
+					.catch((error) => {
+						note('Setup failed: ' + error.message, true);
+
+						document.getElementById('submitHint').textContent = '';
+					});
+			}
+		</script>
+	</body>
+</html>

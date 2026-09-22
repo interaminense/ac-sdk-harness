@@ -15,6 +15,8 @@ live SDK, drives it, and shows which analytics events fire.
 | `reveal-scenarios.html` | Every plugin's view/impression asset hidden by an ancestor, revealed via a toggle. |
 | `flush-away.html` | Navigation target for `flush.html`'s round trips; carries no SDK on purpose. |
 | `marketo-form.html` | The Marketo integration script (LPD-103259) against a stand-in for the liferay.com demo form. |
+| `marketo-lite.html` | The Marketo script with only the form, a Submit button and an SDK configuration box. |
+| `marketo-lite-success.html` | Follow-up URL for `marketo-lite.html`; reports the `/identity` payload. Carries no SDK on purpose. |
 | `marketo-integration.js` | Committed copy of the script published on the Confluence guide, so the harness has something to load. |
 | `flush.html` | `Analytics.flush()` and the request-timeout behavior around it (LPD-103258). |
 | `set-identity-fields.html` | The optional `fields` array on `setIdentity()` and the identity dedup that hangs off it (LPD-103257). |
@@ -433,6 +435,25 @@ here — the first run reported an empty `fields` array and the SDK was innocent
 The script URL comes from `?script=`, defaulting to
 `./local/liferay-analytics-marketo.js` — the same gitignored drop point pattern
 as the SDK bundle.
+
+## The lite Marketo page
+
+`marketo-lite.html` is the manual counterpart of `marketo-form.html`: the same
+stand-in form and the same committed script, no probes. It exists to submit
+against an arbitrary workspace, so the SDK configuration is an editable box
+rather than a constant. Precedence is query string (`?sdk=`, `?projectId=`, …) >
+`harness_lite_config` in `localStorage` > the dev defaults; **Apply and reload**
+drops the query string, or it would win over what was just saved.
+
+It records the `/identity` requests that leave *after* the submit into
+`harness_lite_trip`, and `marketo-lite-success.html` renders them. Two details:
+
+- Capture starts at the submit, not at load. `create()` queues an anonymous
+  identity of its own, and counting it would put a second, empty payload on the
+  report.
+- The success page carries no SDK, like `flush-away.html`. A client there would
+  drain whatever the form page left queued, which is exactly the case — no
+  `flush()`, script navigates immediately — the page reports as "nothing left".
 
 ## Conventions for editing the harness pages
 
